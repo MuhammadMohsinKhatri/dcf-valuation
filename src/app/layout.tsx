@@ -6,7 +6,7 @@ import { Providers } from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Fable DCF — Equity Valuation Platform",
+  title: "BOE DCF — Equity Valuation Platform",
   description: "Institutional-quality DCF models with AI-assisted assumptions",
 };
 

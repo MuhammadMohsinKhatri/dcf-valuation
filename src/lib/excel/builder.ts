@@ -7,7 +7,7 @@ import { buildDCFSheet } from "./sheets/dcf";
 
 export async function buildDCFExcel(model: DCFModel): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Fable DCF Platform";
+  wb.creator = "BOE DCF Platform";
   wb.created = new Date();
   wb.modified = new Date();
   wb.calcProperties.fullCalcOnLoad = true;

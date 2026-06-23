@@ -34,7 +34,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 w-full max-w-sm">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Fable DCF</h1>
+          <h1 className="text-2xl font-bold text-gray-900">BOE DCF</h1>
           <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
         </div>
 

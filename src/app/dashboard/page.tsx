@@ -18,7 +18,7 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-xl font-bold text-blue-700">Fable DCF</span>
+          <span className="text-xl font-bold text-blue-700">BOE DCF</span>
           <span className="text-sm text-gray-400">Equity Valuation Platform</span>
         </div>
         <div className="flex items-center gap-4">

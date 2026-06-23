@@ -34,7 +34,7 @@ export default function RegisterPage() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 w-full max-w-sm">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
-          <p className="text-sm text-gray-500 mt-1">Fable DCF Platform</p>
+          <p className="text-sm text-gray-500 mt-1">BOE DCF — Discounted Cash Flow Platform</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
