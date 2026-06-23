@@ -1,5 +1,5 @@
 import type ExcelJS from "exceljs";
-import { headerStyle, labelStyle, inputStyle, formulaStyle, HEADER_BG } from "../styles";
+import { headerStyle, labelStyle, formulaStyle, inputStyle } from "../styles";
 import type { DCFModel } from "@/types/model";
 
 export function buildCoverSheet(wb: ExcelJS.Workbook, model: DCFModel) {

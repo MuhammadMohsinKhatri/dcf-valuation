@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   const filename = `${model.ticker}_DCF_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
-  return new NextResponse(buffer, {
+  return new NextResponse(buffer.buffer as ArrayBuffer, {
     status: 200,
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

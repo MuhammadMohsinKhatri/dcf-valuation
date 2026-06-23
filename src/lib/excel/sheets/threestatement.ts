@@ -5,13 +5,11 @@ import {
   labelStyle,
   formulaStyle,
   inputStyle,
-  pctFmt,
   currencyFmt,
-  thinBorder,
   BLACK_FORMULA,
   BLUE_INPUT,
 } from "../styles";
-import type { DCFModel, FinancialPeriod } from "@/types/model";
+import type { DCFModel } from "@/types/model";
 import type { AssumptionCellMap } from "./assumptions";
 
 // Builds IS, BS, CF on separate worksheets and returns projection column references for DCF sheet
@@ -196,7 +194,7 @@ export function buildThreeStatementSheets(
     is.getCell(`${colLetter(c)}${isRow}`).value = {
       formula: `=${colLetter(c)}${ebitRow}/${colLetter(c)}${revenueRow}`,
     };
-    Object.assign(is.getCell(`${colLetter(c)}${isRow}`), formulaStyle(pctFmt(1)));
+    Object.assign(is.getCell(`${colLetter(c)}${isRow}`), formulaStyle("0.0%"));
   }
   isRow++;
 

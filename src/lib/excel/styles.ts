@@ -1,4 +1,6 @@
-import type { Style, Alignment, Font, Fill, Border } from "exceljs";
+import type ExcelJS from "exceljs";
+type Style = ExcelJS.Style;
+type Border = ExcelJS.Border;
 
 export const BLUE_INPUT = "FF0070C0";   // blue — hardcoded input cells
 export const BLACK_FORMULA = "FF000000"; // black — formula-derived cells

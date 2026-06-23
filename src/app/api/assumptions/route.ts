@@ -20,13 +20,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const result = await generateDCFAssumptions(
-    ticker,
-    companyName,
-    sector ?? "Unknown",
-    industry ?? "Unknown",
-    historicalPeriods
-  );
-
-  return NextResponse.json(result);
+  try {
+    const result = await generateDCFAssumptions(
+      ticker,
+      companyName,
+      sector ?? "Unknown",
+      industry ?? "Unknown",
+      historicalPeriods
+    );
+    return NextResponse.json(result);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("Assumptions API error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

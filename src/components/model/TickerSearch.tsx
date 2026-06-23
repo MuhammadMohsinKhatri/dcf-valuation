@@ -1,7 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/Input";
-import { cn } from "@/lib/utils";
 import type { CompanySearchResult } from "@/types/model";
 
 interface Props {
@@ -13,18 +12,27 @@ export function TickerSearch({ onSelect }: Props) {
   const [results, setResults] = useState<CompanySearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState("");
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (query.length < 1) { setResults([]); setOpen(false); return; }
+    if (query.length < 1) { setResults([]); setOpen(false); setError(""); return; }
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(async () => {
       setLoading(true);
+      setError("");
       try {
         const res = await fetch(`/api/financials?action=search&q=${encodeURIComponent(query)}`);
-        const data = await res.json();
-        setResults(data.slice(0, 8));
-        setOpen(true);
+        const text = await res.text();
+        if (!text) { setError("No response from server"); return; }
+        const data = JSON.parse(text);
+        if (data.error) { setError(data.error); return; }
+        if (Array.isArray(data)) {
+          setResults(data.slice(0, 8));
+          setOpen(true);
+        }
+      } catch (e) {
+        setError("Search failed — check your FMP API key in .env");
       } finally {
         setLoading(false);
       }
@@ -43,6 +51,11 @@ export function TickerSearch({ onSelect }: Props) {
       />
       {loading && (
         <div className="absolute right-3 top-9 text-gray-400 text-xs">Searching...</div>
+      )}
+      {error && (
+        <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+          {error}
+        </div>
       )}
       {open && results.length > 0 && (
         <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-y-auto">

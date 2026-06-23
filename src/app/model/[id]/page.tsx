@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { AssumptionsPanel } from "@/components/model/AssumptionsPanel";
 import { DCFOutput } from "@/components/model/DCFOutput";
 import { ScenarioSelector } from "@/components/model/ScenarioSelector";
@@ -10,7 +10,6 @@ import type { DCFModel, DCFAssumptions, AssumptionSource, Scenario } from "@/typ
 
 export default function ModelPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const [model, setModel] = useState<DCFModel | null>(null);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -73,28 +72,22 @@ export default function ModelPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Nav */}
       <nav className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-blue-700 font-bold text-lg">Fable DCF</Link>
+          <Link href="/dashboard" className="text-blue-700 font-bold text-lg">Fable DCF</Link>
           <span className="text-gray-300">|</span>
           <span className="font-mono font-bold text-gray-800">{model.ticker}</span>
           <span className="text-gray-600 text-sm">{model.companyName}</span>
         </div>
         <div className="flex items-center gap-3">
           <ScenarioSelector value={model.activeScenario} onChange={handleScenarioChange} />
-          <Button variant="secondary" size="sm" onClick={save} loading={saving}>
-            Save
-          </Button>
-          <Button size="sm" onClick={exportExcel} loading={exporting}>
-            Export Excel
-          </Button>
+          <Button variant="secondary" size="sm" onClick={save} loading={saving}>Save</Button>
+          <Button size="sm" onClick={exportExcel} loading={exporting}>Export Excel</Button>
         </div>
       </nav>
 
-      {/* Tabs */}
       <div className="bg-white border-b border-gray-200 px-6">
-        <div className="flex gap-0">
+        <div className="flex">
           {(["output", "assumptions", "financials"] as const).map((tab) => (
             <button
               key={tab}
@@ -111,12 +104,10 @@ export default function ModelPage() {
         </div>
       </div>
 
-      {/* Content */}
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8">
         {activeTab === "output" && (
           <DCFOutput model={model} scenario={model.activeScenario} />
         )}
-
         {activeTab === "assumptions" && (
           <AssumptionsPanel
             ticker={model.ticker}
@@ -129,7 +120,6 @@ export default function ModelPage() {
             onUpdate={handleAssumptionsUpdate}
           />
         )}
-
         {activeTab === "financials" && (
           <div className="overflow-x-auto">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Historical Financials ($M)</h2>

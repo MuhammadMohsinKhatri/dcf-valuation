@@ -22,20 +22,29 @@ export function AssumptionsPanel({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [narrative, setNarrative] = useState("");
+  const [aiError, setAiError] = useState("");
   const [local, setLocal] = useState<DCFAssumptions>(assumptions);
 
   async function runAI() {
     setLoading(true);
+    setAiError("");
     try {
       const res = await fetch("/api/assumptions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticker, companyName, sector, industry, historicalPeriods }),
       });
-      const data = await res.json();
-      setLocal(data.assumptions);
-      setNarrative(data.narrative);
-      onUpdate(data.assumptions, data.sources);
+      const text = await res.text();
+      if (!text) { setAiError("Empty response from AI service"); return; }
+      const data = JSON.parse(text);
+      if (data.error) { setAiError(data.error); return; }
+      if (data.assumptions) {
+        setLocal(data.assumptions);
+        setNarrative(data.narrative ?? "");
+        onUpdate(data.assumptions, data.sources ?? []);
+      }
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "AI request failed");
     } finally {
       setLoading(false);
     }
@@ -62,6 +71,12 @@ export function AssumptionsPanel({
           ✨ AI Auto-Fill
         </Button>
       </div>
+
+      {aiError && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          AI Error: {aiError}
+        </div>
+      )}
 
       {narrative && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 whitespace-pre-line">

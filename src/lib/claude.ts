@@ -89,13 +89,27 @@ netDebt in millions. sharesOutstanding in millions.`;
 
   const message = await client.messages.create({
     model: "claude-opus-4-8",
-    max_tokens: 2000,
+    max_tokens: 4000,
     messages: [{ role: "user", content: prompt }],
   });
 
   const text = message.content[0].type === "text" ? message.content[0].text : "";
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Claude did not return valid JSON");
 
-  return JSON.parse(jsonMatch[0]) as AssumptionsResponse;
+  // Extract JSON block robustly
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1) throw new Error("Claude did not return valid JSON");
+  const jsonStr = text.slice(start, end + 1);
+
+  let parsed: AssumptionsResponse;
+  try {
+    parsed = JSON.parse(jsonStr) as AssumptionsResponse;
+  } catch {
+    // Narrative may contain unescaped quotes — strip it and use a safe fallback
+    const safe = jsonStr.replace(/"narrative"\s*:\s*"[\s\S]*?"(?=\s*[},])/, '"narrative": ""');
+    parsed = JSON.parse(safe) as AssumptionsResponse;
+    parsed.narrative = "AI narrative unavailable — assumptions generated successfully.";
+  }
+
+  return parsed;
 }

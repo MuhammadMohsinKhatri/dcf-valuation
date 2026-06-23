@@ -6,7 +6,6 @@ import {
   inputStyle,
   scenarioBg,
   pctFmt,
-  thinBorder,
   BLUE_INPUT,
   BLACK_FORMULA,
 } from "../styles";
