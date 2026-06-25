@@ -150,6 +150,7 @@ export default function NewModelPage() {
       ticker: sym,
       companyName: (fin.profile as Record<string, unknown>)?.companyName as string ?? sym,
       currency: (fin.profile as Record<string, unknown>)?.currency as string ?? "USD",
+      currentPrice: (fin.profile as Record<string, unknown>)?.price as number ?? 0,
       historicalPeriods: fin.periods as DCFModel["historicalPeriods"],
       assumptions,
       assumptionSources: aiRes.sources ?? [],

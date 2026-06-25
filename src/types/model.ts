@@ -66,6 +66,7 @@ export interface DCFModel {
   ticker: string;
   companyName: string;
   currency: string;
+  currentPrice?: number;
   historicalPeriods: FinancialPeriod[];
   assumptions: DCFAssumptions;
   assumptionSources: AssumptionSource[];
@@ -131,4 +132,6 @@ export interface FMPProfile {
   description: string;
   sector: string;
   industry: string;
+  price: number;
 }
+

@@ -121,37 +121,108 @@ export default function ModelPage() {
           />
         )}
         {activeTab === "financials" && (
-          <div className="overflow-x-auto">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Historical Financials ($M)</h2>
-            <table className="text-sm w-full border-collapse bg-white rounded-xl overflow-hidden border border-gray-200">
-              <thead>
-                <tr className="bg-gray-800 text-white">
-                  <th className="text-left px-4 py-3">Metric</th>
-                  {model.historicalPeriods.map((p) => (
-                    <th key={p.year} className="px-4 py-3">FY{p.year}A</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { key: "revenue" as const, label: "Revenue" },
-                  { key: "grossProfit" as const, label: "Gross Profit" },
-                  { key: "ebit" as const, label: "EBIT" },
-                  { key: "netIncome" as const, label: "Net Income" },
-                  { key: "operatingCashFlow" as const, label: "Operating Cash Flow" },
-                  { key: "freeCashFlow" as const, label: "Free Cash Flow" },
-                ].map(({ key, label }, i) => (
-                  <tr key={key} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                    <td className="px-4 py-2.5 font-medium text-gray-700">{label}</td>
-                    {model.historicalPeriods.map((p) => (
-                      <td key={p.year} className="px-4 py-2.5 text-right font-mono">
-                        {(p[key] / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                      </td>
-                    ))}
+          <div className="space-y-8 overflow-x-auto">
+
+            {/* Income Statement */}
+            <div>
+              <h2 className="text-base font-bold text-gray-900 mb-3 border-l-4 border-blue-600 pl-3">Income Statement ($M)</h2>
+              <table className="text-sm w-full border-collapse bg-white rounded-xl overflow-hidden border border-gray-200">
+                <thead>
+                  <tr className="bg-gray-800 text-white">
+                    <th className="text-left px-4 py-3 w-56">Metric</th>
+                    {model.historicalPeriods.map((p) => <th key={p.year} className="px-4 py-3 text-right">FY{p.year}A</th>)}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {[
+                    { key: "revenue" as const, label: "Revenue", bold: true },
+                    { key: "grossProfit" as const, label: "Gross Profit", bold: false },
+                    { key: "ebit" as const, label: "EBIT (Operating Income)", bold: false },
+                    { key: "interestExpense" as const, label: "Interest Expense", bold: false },
+                    { key: "taxExpense" as const, label: "Income Tax Expense", bold: false },
+                    { key: "netIncome" as const, label: "Net Income", bold: true },
+                  ].map(({ key, label, bold }, i) => (
+                    <tr key={key} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                      <td className={`px-4 py-2.5 ${bold ? "font-bold text-gray-900" : "text-gray-600"}`}>{label}</td>
+                      {model.historicalPeriods.map((p) => (
+                        <td key={p.year} className={`px-4 py-2.5 text-right font-mono ${bold ? "font-bold" : ""}`}>
+                          {(p[key] / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Balance Sheet */}
+            <div>
+              <h2 className="text-base font-bold text-gray-900 mb-3 border-l-4 border-green-600 pl-3">Balance Sheet ($M)</h2>
+              <table className="text-sm w-full border-collapse bg-white rounded-xl overflow-hidden border border-gray-200">
+                <thead>
+                  <tr className="bg-gray-800 text-white">
+                    <th className="text-left px-4 py-3 w-56">Metric</th>
+                    {model.historicalPeriods.map((p) => <th key={p.year} className="px-4 py-3 text-right">FY{p.year}A</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { key: "cash" as const, label: "Cash & Equivalents", bold: false },
+                    { key: "accountsReceivable" as const, label: "Accounts Receivable", bold: false },
+                    { key: "inventory" as const, label: "Inventory", bold: false },
+                    { key: "totalCurrentAssets" as const, label: "Total Current Assets", bold: true },
+                    { key: "ppe" as const, label: "PP&E (Net)", bold: false },
+                    { key: "totalAssets" as const, label: "Total Assets", bold: true },
+                    { key: "accountsPayable" as const, label: "Accounts Payable", bold: false },
+                    { key: "shortTermDebt" as const, label: "Short Term Debt", bold: false },
+                    { key: "totalCurrentLiabilities" as const, label: "Total Current Liabilities", bold: true },
+                    { key: "longTermDebt" as const, label: "Long Term Debt", bold: false },
+                    { key: "totalLiabilities" as const, label: "Total Liabilities", bold: true },
+                    { key: "equity" as const, label: "Total Equity", bold: true },
+                  ].map(({ key, label, bold }, i) => (
+                    <tr key={key} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                      <td className={`px-4 py-2.5 ${bold ? "font-bold text-gray-900" : "text-gray-600"}`}>{label}</td>
+                      {model.historicalPeriods.map((p) => (
+                        <td key={p.year} className={`px-4 py-2.5 text-right font-mono ${bold ? "font-bold" : ""}`}>
+                          {(p[key] / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Cash Flow Statement */}
+            <div>
+              <h2 className="text-base font-bold text-gray-900 mb-3 border-l-4 border-purple-600 pl-3">Cash Flow Statement ($M)</h2>
+              <table className="text-sm w-full border-collapse bg-white rounded-xl overflow-hidden border border-gray-200">
+                <thead>
+                  <tr className="bg-gray-800 text-white">
+                    <th className="text-left px-4 py-3 w-56">Metric</th>
+                    {model.historicalPeriods.map((p) => <th key={p.year} className="px-4 py-3 text-right">FY{p.year}A</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { key: "operatingCashFlow" as const, label: "Operating Cash Flow", bold: true },
+                    { key: "depreciationAmortization" as const, label: "Depreciation & Amortization", bold: false },
+                    { key: "capex" as const, label: "Capital Expenditures", bold: false },
+                    { key: "freeCashFlow" as const, label: "Free Cash Flow", bold: true },
+                  ].map(({ key, label, bold }, i) => (
+                    <tr key={key} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                      <td className={`px-4 py-2.5 ${bold ? "font-bold text-gray-900" : "text-gray-600"}`}>{label}</td>
+                      {model.historicalPeriods.map((p) => (
+                        <td key={p.year} className={`px-4 py-2.5 text-right font-mono ${bold ? "font-bold" : ""}`}>
+                          {(p[key] / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
           </div>
         )}
       </main>
