@@ -127,8 +127,9 @@ export interface FMPProfile {
   symbol: string;
   companyName: string;
   currency: string;
-  mktCap: number;
-  sharesOutstanding: number;
+  mktCap?: number;
+  marketCap?: number;
+  sharesOutstanding?: number;
   description: string;
   sector: string;
   industry: string;

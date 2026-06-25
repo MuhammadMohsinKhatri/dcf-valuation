@@ -108,5 +108,9 @@ export async function getCashFlows(ticker: string, limit = 5): Promise<FMPCashFl
 
 export async function getSharesOutstanding(ticker: string): Promise<number> {
   const profile = await getProfile(ticker);
-  return profile.sharesOutstanding / 1e6;
+  const raw = profile.sharesOutstanding ?? 0;
+  const marketCap = profile.marketCap ?? profile.mktCap ?? 0;
+  const price = profile.price ?? 0;
+  const shares = raw > 1e6 ? raw / 1e6 : raw > 0 ? raw : (marketCap && price ? (marketCap / price) / 1e6 : 0);
+  return shares;
 }

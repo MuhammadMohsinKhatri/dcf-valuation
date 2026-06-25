@@ -66,11 +66,34 @@ export async function GET(req: NextRequest) {
         };
       });
 
+      const profileRaw = profile as Record<string, unknown>;
+      console.log("=== FMP PROFILE RAW ===", JSON.stringify(profile));
+      console.log("=== sharesOutstanding field ===", profileRaw.sharesOutstanding);
+      console.log("=== mktCap field ===", profileRaw.mktCap);
+      console.log("=== price field ===", profileRaw.price);
+
+      const rawShares =
+        (profileRaw.sharesOutstanding as number) ||
+        (profileRaw.shares as number) ||
+        (profileRaw.commonStock as number) ||
+        0;
+
+      const marketCap = (profileRaw.marketCap as number) || (profileRaw.mktCap as number) || 0;
+      const price = (profileRaw.price as number) || 0;
+
+      const sharesOutstandingM = rawShares > 1e6
+        ? rawShares / 1e6
+        : rawShares > 0
+          ? rawShares
+          : (marketCap && price ? (marketCap / price) / 1e6 : 0);
+
+      console.log("=== sharesOutstandingM (final) ===", sharesOutstandingM, "marketCap:", marketCap, "price:", price);
+
       return NextResponse.json({
         profile,
         periods,
         netDebt: balance[0]?.netDebt ?? 0,
-        sharesOutstanding: (profile.sharesOutstanding ?? 0) / 1e6,
+        sharesOutstanding: sharesOutstandingM,
       });
     }
 
