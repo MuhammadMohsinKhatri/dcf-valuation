@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { ModelCard } from "@/components/model/ModelCard";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -52,26 +53,14 @@ export default async function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {models.map((m) => (
-              <Link key={m.id} href={`/model/${m.id}`}>
-                <div className="bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-400 hover:shadow-sm transition-all cursor-pointer">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-mono font-bold text-blue-700 text-lg">{m.ticker}</p>
-                      <p className="text-sm text-gray-600 mt-0.5">{m.companyName}</p>
-                    </div>
-                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                      m.activeScenario === "bear" ? "bg-red-100 text-red-700" :
-                      m.activeScenario === "bull" ? "bg-green-100 text-green-700" :
-                      "bg-yellow-100 text-yellow-700"
-                    }`}>
-                      {m.activeScenario.charAt(0).toUpperCase() + m.activeScenario.slice(1)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-3">
-                    Updated {new Date(m.updatedAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </Link>
+              <ModelCard
+                key={m.id}
+                id={m.id}
+                ticker={m.ticker}
+                companyName={m.companyName}
+                activeScenario={m.activeScenario}
+                updatedAt={m.updatedAt.toISOString()}
+              />
             ))}
           </div>
         )}

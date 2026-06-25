@@ -42,6 +42,22 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ id: model.id }, { status: 201 });
 }
 
+export async function DELETE(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const id = req.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
+  const existing = await prisma.dCFModel.findFirst({
+    where: { id, userId: session.user.id },
+  });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  await prisma.dCFModel.delete({ where: { id } });
+  return NextResponse.json({ success: true });
+}
+
 export async function PUT(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
