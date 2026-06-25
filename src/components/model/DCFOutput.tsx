@@ -78,12 +78,12 @@ export function DCFOutput({ model, scenario }: Props) {
         </p>
         <div className="mt-3 grid grid-cols-3 gap-4 text-sm">
           <div>
-            <p className="text-gray-500">Enterprise Value</p>
-            <p className="font-semibold">${fmt(result.ev, 0)}M</p>
+            <p className="text-gray-500">EV / Share</p>
+            <p className="font-semibold">${fmt(result.ev / model.assumptions.sharesOutstanding, 2)}</p>
           </div>
           <div>
-            <p className="text-gray-500">Equity Value</p>
-            <p className="font-semibold">${fmt(result.equity, 0)}M</p>
+            <p className="text-gray-500">Equity Value / Share</p>
+            <p className="font-semibold">${fmt(result.equity / model.assumptions.sharesOutstanding, 2)}</p>
           </div>
           <div>
             <p className="text-gray-500">TV % of EV</p>
@@ -94,13 +94,13 @@ export function DCFOutput({ model, scenario }: Props) {
 
       {/* FCF waterfall */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">Projected FCF ($M)</h3>
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">Projected FCF / Share</h3>
         <div className="grid grid-cols-5 gap-2">
           {result.fcfs.map((fcf, i) => (
             <div key={i} className="bg-white border rounded-lg p-3 text-center">
               <p className="text-xs text-gray-500">Yr {i + 1}</p>
-              <p className="font-mono font-semibold text-sm">{fmt(fcf, 1)}</p>
-              <p className="text-xs text-gray-400">PV: {fmt(result.pvFcfs[i], 1)}</p>
+              <p className="font-mono font-semibold text-sm">${fmt(fcf / model.assumptions.sharesOutstanding, 2)}</p>
+              <p className="text-xs text-gray-400">PV: ${fmt(result.pvFcfs[i] / model.assumptions.sharesOutstanding, 2)}</p>
             </div>
           ))}
         </div>
@@ -108,21 +108,23 @@ export function DCFOutput({ model, scenario }: Props) {
 
       {/* Bridge */}
       <div className="bg-white border rounded-lg p-4 text-sm">
-        <h3 className="font-semibold text-gray-700 mb-3">EV → Equity Bridge ($M)</h3>
+        <h3 className="font-semibold text-gray-700 mb-3">EV → Equity Bridge (Per Share)</h3>
         <div className="space-y-1.5">
           {[
-            ["PV of FCFs", result.sumPVFcf, false],
-            ["PV of Terminal Value", result.pvTV, false],
-            ["= Enterprise Value", result.ev, true],
-            ["Less: Net Debt", -model.assumptions.netDebt, false],
-            ["= Equity Value", result.equity, true],
+            ["PV of FCFs / Share", result.sumPVFcf / model.assumptions.sharesOutstanding, false],
+            ["PV of Terminal Value / Share", result.pvTV / model.assumptions.sharesOutstanding, false],
+            ["= Enterprise Value / Share", result.ev / model.assumptions.sharesOutstanding, true],
+            ["Less: Net Debt / Share", -model.assumptions.netDebt / model.assumptions.sharesOutstanding, false],
+            ["Less: Minority Interest / Share", -model.assumptions.minorityInterest / model.assumptions.sharesOutstanding, false],
+            ["= Equity Value / Share", result.equity / model.assumptions.sharesOutstanding, true],
           ].map(([label, val, bold]) => (
             <div key={label as string} className={`flex justify-between ${bold ? "font-semibold border-t pt-1.5" : "text-gray-600"}`}>
               <span>{label as string}</span>
-              <span className="font-mono">${fmt(val as number, 1)}</span>
+              <span className="font-mono">${fmt(val as number, 2)}</span>
             </div>
           ))}
         </div>
+        <p className="text-xs text-gray-400 mt-3">Shares Outstanding: {fmt(model.assumptions.sharesOutstanding, 1)}M</p>
       </div>
     </div>
   );
