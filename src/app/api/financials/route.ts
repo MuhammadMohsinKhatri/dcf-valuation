@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
         };
       });
 
-      const profileRaw = profile as Record<string, unknown>;
+      const profileRaw = profile as unknown as Record<string, unknown>;
       console.log("=== FMP PROFILE RAW ===", JSON.stringify(profile));
       console.log("=== sharesOutstanding field ===", profileRaw.sharesOutstanding);
       console.log("=== mktCap field ===", profileRaw.mktCap);
