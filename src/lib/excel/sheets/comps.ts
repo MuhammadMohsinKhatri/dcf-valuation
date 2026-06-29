@@ -410,7 +410,7 @@ export function buildCompsSheet(
       ],
       currentPrice
     );
-    const imageId = wb.addImage({ buffer: chartBuf, extension: "png" });
+    const imageId = wb.addImage({ base64: chartBuf.toString("base64"), extension: "png" });
     const imgH = 40 + 3 * (30 + 18) + 46; // matches PNG height
     ws.addImage(imageId, {
       tl: { col: 0, row: row - 1 },
