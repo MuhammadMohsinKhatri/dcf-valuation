@@ -9,9 +9,10 @@ interface Props {
   companyName: string;
   activeScenario: string;
   updatedAt: string;
+  aiNarrative?: string;
 }
 
-export function ModelCard({ id, ticker, companyName, activeScenario, updatedAt }: Props) {
+export function ModelCard({ id, ticker, companyName, activeScenario, updatedAt, aiNarrative }: Props) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -25,9 +26,11 @@ export function ModelCard({ id, ticker, companyName, activeScenario, updatedAt }
     router.refresh();
   }
 
+  const snippet = aiNarrative ? aiNarrative.slice(0, 120) + (aiNarrative.length > 120 ? "…" : "") : null;
+
   return (
-    <div className="relative bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-400 hover:shadow-sm transition-all">
-      <Link href={`/model/${id}`} className="block">
+    <div className="relative bg-white rounded-xl border border-gray-200 p-5 hover:border-blue-400 hover:shadow-sm transition-all flex flex-col">
+      <Link href={`/model/${id}`} className="block flex-1">
         <div className="flex items-start justify-between">
           <div>
             <p className="font-mono font-bold text-blue-700 text-lg">{ticker}</p>
@@ -41,6 +44,14 @@ export function ModelCard({ id, ticker, companyName, activeScenario, updatedAt }
             {activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1)}
           </span>
         </div>
+
+        {snippet && (
+          <div className="mt-3 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+            <p className="text-xs text-blue-600 font-semibold mb-0.5">AI Analyst Note</p>
+            <p className="text-xs text-gray-600 leading-relaxed">{snippet}</p>
+          </div>
+        )}
+
         <p className="text-xs text-gray-400 mt-3">
           Updated {new Date(updatedAt).toLocaleDateString()}
         </p>

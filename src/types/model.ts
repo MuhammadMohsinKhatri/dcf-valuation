@@ -70,6 +70,7 @@ export interface DCFModel {
   historicalPeriods: FinancialPeriod[];
   assumptions: DCFAssumptions;
   assumptionSources: AssumptionSource[];
+  aiNarrative?: string;
   activeScenario: Scenario;
   createdAt: string;
   updatedAt: string;

@@ -154,6 +154,7 @@ export default function NewModelPage() {
       historicalPeriods: fin.periods as DCFModel["historicalPeriods"],
       assumptions,
       assumptionSources: aiRes.sources ?? [],
+      aiNarrative: aiRes.narrative ?? "",
       activeScenario: "base",
     };
 

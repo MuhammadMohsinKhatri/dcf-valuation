@@ -13,15 +13,16 @@ interface Props {
   historicalPeriods: FinancialPeriod[];
   assumptions: DCFAssumptions;
   sources: AssumptionSource[];
-  onUpdate: (a: DCFAssumptions, s: AssumptionSource[]) => void;
+  aiNarrative?: string;
+  onUpdate: (a: DCFAssumptions, s: AssumptionSource[], narrative?: string) => void;
 }
 
 export function AssumptionsPanel({
   ticker, companyName, sector, industry, historicalPeriods,
-  assumptions, sources, onUpdate,
+  assumptions, sources, aiNarrative, onUpdate,
 }: Props) {
   const [loading, setLoading] = useState(false);
-  const [narrative, setNarrative] = useState("");
+  const [narrative, setNarrative] = useState(aiNarrative ?? "");
   const [aiError, setAiError] = useState("");
   const [local, setLocal] = useState<DCFAssumptions>(assumptions);
 
@@ -41,7 +42,7 @@ export function AssumptionsPanel({
       if (data.assumptions) {
         setLocal(data.assumptions);
         setNarrative(data.narrative ?? "");
-        onUpdate(data.assumptions, data.sources ?? []);
+        onUpdate(data.assumptions, data.sources ?? [], data.narrative ?? "");
       }
     } catch (e) {
       setAiError(e instanceof Error ? e.message : "AI request failed");

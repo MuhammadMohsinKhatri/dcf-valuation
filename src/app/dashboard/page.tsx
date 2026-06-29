@@ -52,16 +52,21 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {models.map((m) => (
-              <ModelCard
-                key={m.id}
-                id={m.id}
-                ticker={m.ticker}
-                companyName={m.companyName}
-                activeScenario={m.activeScenario}
-                updatedAt={m.updatedAt.toISOString()}
-              />
-            ))}
+            {models.map((m) => {
+              let aiNarrative: string | undefined;
+              try { aiNarrative = (JSON.parse(m.modelData as string) as { aiNarrative?: string }).aiNarrative; } catch { /* skip */ }
+              return (
+                <ModelCard
+                  key={m.id}
+                  id={m.id}
+                  ticker={m.ticker}
+                  companyName={m.companyName}
+                  activeScenario={m.activeScenario}
+                  updatedAt={m.updatedAt.toISOString()}
+                  aiNarrative={aiNarrative}
+                />
+              );
+            })}
           </div>
         )}
       </main>

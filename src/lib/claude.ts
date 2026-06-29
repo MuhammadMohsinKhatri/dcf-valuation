@@ -1,7 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
 import type { DCFAssumptions, AssumptionSource, FinancialPeriod } from "@/types/model";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 interface AssumptionsResponse {
   assumptions: DCFAssumptions;
@@ -87,25 +84,47 @@ Return ONLY valid JSON matching this exact schema:
 All rates should be decimals (e.g., 0.05 for 5%). EBIT margins and growth rates must be realistic for the sector.
 netDebt in millions. sharesOutstanding in millions.`;
 
-  const message = await client.messages.create({
-    model: "claude-opus-4-8",
-    max_tokens: 4000,
-    messages: [{ role: "user", content: prompt }],
+  // --- Claude (commented out, using DeepSeek) ---
+  // const { default: Anthropic } = await import("@anthropic-ai/sdk");
+  // const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  // const message = await client.messages.create({
+  //   model: "claude-opus-4-8",
+  //   max_tokens: 4000,
+  //   messages: [{ role: "user", content: prompt }],
+  // });
+  // const text = message.content[0].type === "text" ? message.content[0].text : "";
+
+  // --- DeepSeek ---
+  const response = await fetch("https://api.deepseek.com/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "deepseek-chat",
+      max_tokens: 4000,
+      messages: [{ role: "user", content: prompt }],
+    }),
   });
 
-  const text = message.content[0].type === "text" ? message.content[0].text : "";
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`DeepSeek API error ${response.status}: ${err}`);
+  }
 
-  // Extract JSON block robustly
+  const data = await response.json() as { choices: Array<{ message: { content: string } }> };
+  const text = data.choices?.[0]?.message?.content ?? "";
+
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("Claude did not return valid JSON");
+  if (start === -1 || end === -1) throw new Error("DeepSeek did not return valid JSON");
   const jsonStr = text.slice(start, end + 1);
 
   let parsed: AssumptionsResponse;
   try {
     parsed = JSON.parse(jsonStr) as AssumptionsResponse;
   } catch {
-    // Narrative may contain unescaped quotes — strip it and use a safe fallback
     const safe = jsonStr.replace(/"narrative"\s*:\s*"[\s\S]*?"(?=\s*[},])/, '"narrative": ""');
     parsed = JSON.parse(safe) as AssumptionsResponse;
     parsed.narrative = "AI narrative unavailable — assumptions generated successfully.";

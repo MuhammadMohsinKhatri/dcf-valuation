@@ -25,8 +25,13 @@ export default function ModelPage() {
     });
   }, [id]);
 
-  const handleAssumptionsUpdate = useCallback((a: DCFAssumptions, s: AssumptionSource[]) => {
-    setModel((prev) => prev ? { ...prev, assumptions: a, assumptionSources: s } : prev);
+  const handleAssumptionsUpdate = useCallback((a: DCFAssumptions, s: AssumptionSource[], narrative?: string) => {
+    setModel((prev) => prev ? {
+      ...prev,
+      assumptions: a,
+      assumptionSources: s,
+      ...(narrative !== undefined ? { aiNarrative: narrative } : {}),
+    } : prev);
   }, []);
 
   const handleScenarioChange = useCallback((s: Scenario) => {
@@ -117,6 +122,7 @@ export default function ModelPage() {
             historicalPeriods={model.historicalPeriods}
             assumptions={model.assumptions}
             sources={model.assumptionSources}
+            aiNarrative={model.aiNarrative}
             onUpdate={handleAssumptionsUpdate}
           />
         )}
