@@ -67,6 +67,8 @@ export interface DCFModel {
   companyName: string;
   currency: string;
   currentPrice?: number;
+  sector?: string;
+  industry?: string;
   historicalPeriods: FinancialPeriod[];
   assumptions: DCFAssumptions;
   assumptionSources: AssumptionSource[];
