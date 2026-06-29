@@ -95,6 +95,7 @@ netDebt in millions. sharesOutstanding in millions.`;
   // const text = message.content[0].type === "text" ? message.content[0].text : "";
 
   // --- DeepSeek ---
+  console.log("=== AI PROVIDER: DeepSeek | Model: deepseek-chat | Key:", process.env.DEEPSEEK_API_KEY?.slice(0, 8) + "..." + " ===");
   const response = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: {
