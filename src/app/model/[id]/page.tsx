@@ -459,7 +459,7 @@ export default function ModelPage() {
                     <tr className="bg-white">
                       <td className="px-4 py-2 text-gray-600 pl-8">Capital Expenditures (CapEx)</td>
                       {allCols.map((c) => {
-                        const capexVal = c.isProjected ? (c.capex ?? 0) : c.capex;
+                        const capexVal = c.isProjected ? (c.capex ?? 0) : (c.capex ?? 0);
                         return <td key={c.year} className={`px-4 py-2 text-right font-mono ${c.isProjected ? "text-blue-500" : "text-gray-600"}`}>({n(capexVal / 1e6)})</td>;
                       })}
                     </tr>
@@ -480,7 +480,7 @@ export default function ModelPage() {
                     <tr className="bg-gray-800 text-gray-300">
                       <td className="px-4 py-1.5 text-xs pl-8">CapEx % of Revenue</td>
                       {allCols.map((c) => {
-                        const capexVal = c.isProjected ? (c.capex ?? 0) : c.capex;
+                        const capexVal = c.isProjected ? (c.capex ?? 0) : (c.capex ?? 0);
                         return <td key={c.year} className="px-4 py-1.5 text-right text-xs font-mono">{pct((capexVal / c.revenue) * 100)}</td>;
                       })}
                     </tr>
