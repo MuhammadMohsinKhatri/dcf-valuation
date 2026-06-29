@@ -60,21 +60,71 @@ export async function buildDCFExcel(model: DCFModel): Promise<Buffer> {
   // 6. Formula error check sheet
   buildErrorCheckSheet(wb);
 
-  // Freeze panes, print settings
+  // ── PRINT-READY FORMATTING (all sheets) ──────────────────────────────────
+  const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+
   wb.worksheets.forEach((ws) => {
-    ws.views = [{ state: "frozen", xSplit: 1, ySplit: 2, showGridLines: true }];
+    // Freeze header rows + label column
+    ws.views = [{
+      state: "frozen",
+      xSplit: 1,
+      ySplit: 2,
+      showGridLines: true,
+      zoomScale: 85,
+    }];
+
+    // Page setup — landscape, Letter size, fit to 1 page wide
     ws.pageSetup = {
-      paperSize: 9, // A4
+      paperSize: 1,          // Letter
       orientation: "landscape",
       fitToPage: true,
       fitToWidth: 1,
       fitToHeight: 0,
+      horizontalCentered: true,
+      margins: {
+        left: 0.5,
+        right: 0.5,
+        top: 0.75,
+        bottom: 0.75,
+        header: 0.3,
+        footer: 0.3,
+      },
     };
+
+    // Print header/footer — GS style
     ws.headerFooter = {
-      oddHeader: `&L${model.companyName} DCF Model&R&D`,
-      oddFooter: "&LConfidential — Internal Use Only&RPage &P of &N",
+      oddHeader: `&L&"Calibri,Bold"&10${model.companyName} (${model.ticker}) — DCF Valuation Model&C&"Calibri,Regular"&9${ws.name}&R&"Calibri,Regular"&9Confidential — ${today}`,
+      oddFooter: `&L&"Calibri,Italic"&8For internal use only. Not for distribution.&R&"Calibri,Regular"&8Page &P of &N`,
+      evenHeader: `&L&"Calibri,Bold"&10${model.companyName} (${model.ticker}) — DCF Valuation Model&R&"Calibri,Regular"&9${today}`,
+      evenFooter: `&L&"Calibri,Italic"&8Confidential&R&"Calibri,Regular"&8Page &P of &N`,
     };
+
+    // Repeat first 2 rows on every printed page (title + header row)
+    ws.pageSetup.rowBreaks = [];
+    try {
+      ws.pageSetup.printTitlesRow = "1:2";
+    } catch { /* some sheets may not support this */ }
+
+    // Row heights — default
+    ws.properties.defaultRowHeight = 16;
+
+    // Default font for entire sheet
+    ws.properties.defaultColWidth = 14;
   });
+
+  // Per-sheet overrides
+  const coverWs = wb.getWorksheet("Cover");
+  if (coverWs) {
+    coverWs.pageSetup.fitToWidth = 1;
+    coverWs.pageSetup.fitToHeight = 1; // cover fits on 1 page
+  }
+
+  const compsWs = wb.getWorksheet("Comps & Football Field");
+  if (compsWs) {
+    compsWs.pageSetup.orientation = "landscape";
+    compsWs.pageSetup.fitToWidth = 2; // football field is wide — allow 2 pages wide
+    compsWs.views = [{ state: "frozen", xSplit: 1, ySplit: 3, showGridLines: true, zoomScale: 75 }];
+  }
 
   const buffer = await wb.xlsx.writeBuffer();
   return Buffer.from(buffer);

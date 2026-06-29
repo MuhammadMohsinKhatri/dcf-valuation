@@ -8,13 +8,17 @@ import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import type { DCFModel, DCFAssumptions, AssumptionSource, Scenario } from "@/types/model";
 import { ValuationComps } from "@/components/model/ValuationComps";
+import { MDInterview } from "@/components/model/MDInterview";
+import { InvestmentMemo } from "@/components/model/InvestmentMemo";
+import { QCReview } from "@/components/model/QCReview";
+import { FormulaTrace } from "@/components/model/FormulaTrace";
 
 export default function ModelPage() {
   const { id } = useParams<{ id: string }>();
   const [model, setModel] = useState<DCFModel | null>(null);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"output" | "assumptions" | "financials" | "comps">("output");
+  const [activeTab, setActiveTab] = useState<"output" | "assumptions" | "financials" | "comps" | "interview" | "memo" | "qc" | "trace">("output");
 
   useEffect(() => {
     fetch(`/api/model?id=${id}`).then((r) => r.json()).then((data) => {
@@ -92,19 +96,28 @@ export default function ModelPage() {
         </div>
       </nav>
 
-      <div className="bg-white border-b border-gray-200 px-6">
-        <div className="flex">
-          {(["output", "assumptions", "financials", "comps"] as const).map((tab) => (
+      <div className="bg-white border-b border-gray-200 px-6 overflow-x-auto">
+        <div className="flex min-w-max">
+          {([
+            { id: "output", label: "DCF Output" },
+            { id: "assumptions", label: "Assumptions" },
+            { id: "financials", label: "Financials" },
+            { id: "comps", label: "Comps" },
+            { id: "trace", label: "🔗 Formula Trace" },
+            { id: "interview", label: "🎤 MD Interview" },
+            { id: "memo", label: "📄 Inv. Memo" },
+            { id: "qc", label: "✅ QC Review" },
+          ] as const).map(({ id: tab, label }) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === tab
                   ? "border-blue-600 text-blue-700"
                   : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {label}
             </button>
           ))}
         </div>
@@ -118,8 +131,8 @@ export default function ModelPage() {
           <AssumptionsPanel
             ticker={model.ticker}
             companyName={model.companyName}
-            sector=""
-            industry=""
+            sector={model.sector ?? ""}
+            industry={model.industry ?? ""}
             historicalPeriods={model.historicalPeriods}
             assumptions={model.assumptions}
             sources={model.assumptionSources}
@@ -493,6 +506,18 @@ export default function ModelPage() {
         )})()}
         {activeTab === "comps" && (
           <ValuationComps model={model} />
+        )}
+        {activeTab === "trace" && (
+          <FormulaTrace model={model} />
+        )}
+        {activeTab === "interview" && (
+          <MDInterview model={model} />
+        )}
+        {activeTab === "memo" && (
+          <InvestmentMemo model={model} />
+        )}
+        {activeTab === "qc" && (
+          <QCReview model={model} />
         )}
       </main>
     </div>

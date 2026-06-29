@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { fmtPct, fmt } from "@/lib/utils";
 import type { DCFAssumptions, AssumptionSource, FinancialPeriod } from "@/types/model";
+import { ExplainButton } from "./ExplainButton";
 
 interface Props {
   ticker: string;
@@ -102,6 +103,14 @@ export function AssumptionsPanel({
         <div className="flex items-center gap-3 mb-3">
           <div className="w-1 h-6 bg-blue-600 rounded"></div>
           <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Revenue Growth (% YoY)</h3>
+          <ExplainButton
+            ticker={ticker} companyName={companyName} sector={sector}
+            assumptionKey="Revenue Growth (CAGR)"
+            value={`Base: ${(local.revenueGrowthBase[0] * 100).toFixed(1)}% → ${(local.revenueGrowthBase[local.revenueGrowthBase.length - 1] * 100).toFixed(1)}%`}
+            bearValue={`${(local.revenueGrowthBear[0] * 100).toFixed(1)}% Yr1`}
+            bullValue={`${(local.revenueGrowthBull[0] * 100).toFixed(1)}% Yr1`}
+            label="Revenue Growth"
+          />
         </div>
         <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
           <table className="text-sm w-full border-collapse">
@@ -146,6 +155,26 @@ export function AssumptionsPanel({
         <div className="flex items-center gap-3 mb-3">
           <div className="w-1 h-6 bg-blue-600 rounded"></div>
           <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Key Assumptions</h3>
+        </div>
+        {/* Explain buttons for key assumptions */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
+            assumptionKey="WACC" value={`${(local.waccBase * 100).toFixed(1)}%`}
+            bearValue={`${(local.waccBear * 100).toFixed(1)}%`} bullValue={`${(local.waccBull * 100).toFixed(1)}%`}
+            label="WACC" />
+          <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
+            assumptionKey="EBIT Margin" value={`${(local.ebitMarginBase * 100).toFixed(1)}%`}
+            bearValue={`${(local.ebitMarginBear * 100).toFixed(1)}%`} bullValue={`${(local.ebitMarginBull * 100).toFixed(1)}%`}
+            label="EBIT Margin" />
+          <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
+            assumptionKey="Terminal Growth Rate" value={`${(local.terminalGrowthRate * 100).toFixed(1)}%`}
+            label="Terminal Growth Rate" />
+          <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
+            assumptionKey="Tax Rate" value={`${(local.taxRate * 100).toFixed(1)}%`}
+            label="Tax Rate" />
+          <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
+            assumptionKey="CapEx % Revenue" value={`${(local.capexPct * 100).toFixed(1)}%`}
+            label="CapEx % Revenue" />
         </div>
         <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <table className="text-sm w-full border-collapse">
