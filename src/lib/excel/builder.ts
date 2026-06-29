@@ -100,7 +100,6 @@ export async function buildDCFExcel(model: DCFModel): Promise<Buffer> {
     };
 
     // Repeat first 2 rows on every printed page (title + header row)
-    ws.pageSetup.rowBreaks = [];
     try {
       ws.pageSetup.printTitlesRow = "1:2";
     } catch { /* some sheets may not support this */ }
