@@ -50,8 +50,8 @@ export async function GET(req: NextRequest) {
         ),
       ]);
 
-      const m = metrics?.[0] ?? {};
-      const p = profile?.[0] ?? {};
+      const m = (metrics?.[0] ?? {}) as Record<string, number>;
+      const p = (profile?.[0] ?? {}) as { companyName?: string; mktCap?: number };
 
       return {
         symbol: sym,
