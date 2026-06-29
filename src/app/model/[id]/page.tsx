@@ -441,14 +441,14 @@ export default function ModelPage() {
                     <tr className="bg-purple-50 border-t border-purple-200">
                       <td className="px-4 py-2.5 font-bold text-gray-900">Cash from Operations</td>
                       {allCols.map((c) => {
-                        const ocf = c.isProjected ? (c.operatingCashFlow ?? 0) : c.operatingCashFlow;
+                        const ocf = c.isProjected ? (c.operatingCashFlow ?? 0) : (c.operatingCashFlow ?? 0);
                         return <td key={c.year} className={`px-4 py-2.5 text-right font-mono font-bold ${c.isProjected ? "text-blue-700" : "text-gray-900"}`}>{n(ocf / 1e6)}</td>;
                       })}
                     </tr>
                     <tr className="bg-purple-50">
                       <td className="px-4 py-1.5 text-xs text-purple-600 pl-8">Operating Cash Flow Margin %</td>
                       {allCols.map((c) => {
-                        const ocf = c.isProjected ? (c.operatingCashFlow ?? 0) : c.operatingCashFlow;
+                        const ocf = c.isProjected ? (c.operatingCashFlow ?? 0) : (c.operatingCashFlow ?? 0);
                         return <td key={c.year} className="px-4 py-1.5 text-right text-xs font-mono text-purple-600">{pct((ocf / c.revenue) * 100)}</td>;
                       })}
                     </tr>
