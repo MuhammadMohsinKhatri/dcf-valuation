@@ -4,6 +4,33 @@ import { buildCoverSheet } from "./sheets/cover";
 import { buildAssumptionsSheet } from "./sheets/assumptions";
 import { buildThreeStatementSheets } from "./sheets/threestatement";
 import { buildDCFSheet } from "./sheets/dcf";
+import { buildCompsSheet } from "./sheets/comps";
+
+function calcIVPS(model: DCFModel, scenario: "bear" | "base" | "bull"): number {
+  const a = model.assumptions;
+  const hist = model.historicalPeriods;
+  if (!hist.length) return 0;
+  const growthKey = `revenueGrowth${scenario.charAt(0).toUpperCase() + scenario.slice(1)}` as keyof typeof a;
+  const ebitMargin = scenario === "bear" ? a.ebitMarginBear : scenario === "bull" ? a.ebitMarginBull : a.ebitMarginBase;
+  const wacc = scenario === "bear" ? a.waccBear : scenario === "bull" ? a.waccBull : a.waccBase;
+  const growthRates = a[growthKey] as number[];
+  let rev = hist[0].revenue / 1e6;
+  const fcfs: number[] = [];
+  const pvFcfs: number[] = [];
+  for (let yr = 1; yr <= a.projectionYears; yr++) {
+    rev *= (1 + growthRates[yr - 1]);
+    const ebit = rev * ebitMargin;
+    const nopat = ebit * (1 - a.taxRate);
+    const fcf = nopat + rev * a.depreciationPct - rev * a.capexPct;
+    fcfs.push(fcf);
+    pvFcfs.push(fcf / Math.pow(1 + wacc, yr - 0.5));
+  }
+  if (wacc <= a.terminalGrowthRate) return 0;
+  const tv = (fcfs[a.projectionYears - 1] * (1 + a.terminalGrowthRate)) / (wacc - a.terminalGrowthRate);
+  const pvTV = tv / Math.pow(1 + wacc, a.projectionYears);
+  const ev = pvFcfs.reduce((s, v) => s + v, 0) + pvTV;
+  return (ev - a.netDebt - a.minorityInterest) / a.sharesOutstanding;
+}
 
 export async function buildDCFExcel(model: DCFModel): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
@@ -24,7 +51,13 @@ export async function buildDCFExcel(model: DCFModel): Promise<Buffer> {
   // 4. DCF output + sensitivity table
   buildDCFSheet(wb, model, amap, projCells);
 
-  // 5. Formula error check sheet
+  // 5. Comps & Football Field
+  const bearIVPS = calcIVPS(model, "bear");
+  const baseIVPS = calcIVPS(model, "base");
+  const bullIVPS = calcIVPS(model, "bull");
+  buildCompsSheet(wb, model, bearIVPS, baseIVPS, bullIVPS);
+
+  // 6. Formula error check sheet
   buildErrorCheckSheet(wb);
 
   // Freeze panes, print settings

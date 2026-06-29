@@ -7,13 +7,14 @@ import { ScenarioSelector } from "@/components/model/ScenarioSelector";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import type { DCFModel, DCFAssumptions, AssumptionSource, Scenario } from "@/types/model";
+import { ValuationComps } from "@/components/model/ValuationComps";
 
 export default function ModelPage() {
   const { id } = useParams<{ id: string }>();
   const [model, setModel] = useState<DCFModel | null>(null);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"output" | "assumptions" | "financials">("output");
+  const [activeTab, setActiveTab] = useState<"output" | "assumptions" | "financials" | "comps">("output");
 
   useEffect(() => {
     fetch(`/api/model?id=${id}`).then((r) => r.json()).then((data) => {
@@ -93,7 +94,7 @@ export default function ModelPage() {
 
       <div className="bg-white border-b border-gray-200 px-6">
         <div className="flex">
-          {(["output", "assumptions", "financials"] as const).map((tab) => (
+          {(["output", "assumptions", "financials", "comps"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -126,40 +127,109 @@ export default function ModelPage() {
             onUpdate={handleAssumptionsUpdate}
           />
         )}
-        {activeTab === "financials" && (
+        {activeTab === "financials" && (() => {
+          const a = model.assumptions;
+          const hist = model.historicalPeriods;
+          const sh = a.sharesOutstanding;
+          const growthRates = a.revenueGrowthBase;
+          const projYears = a.projectionYears ?? 5;
+
+          // Build projected periods from base case assumptions
+          const projected = [];
+          let rev = hist[0].revenue / 1e6;
+          for (let yr = 0; yr < projYears; yr++) {
+            rev = rev * (1 + growthRates[yr]);
+            const ebit = rev * a.ebitMarginBase;
+            const da = rev * a.depreciationPct;
+            const capex = rev * a.capexPct;
+            const ebitda = ebit + da;
+            const nopat = ebit * (1 - a.taxRate);
+            const fcf = nopat + da - capex;
+            const netIncome = nopat;
+            const grossProfit = rev * (hist[0].grossProfit / (hist[0].revenue / 1e6));
+            projected.push({
+              year: hist[0].year + yr + 1,
+              revenue: rev * 1e6,
+              grossProfit: grossProfit * 1e6,
+              ebitda: ebitda * 1e6,
+              ebit: ebit * 1e6,
+              da: da * 1e6,
+              capex: capex * 1e6,
+              netIncome: netIncome * 1e6,
+              fcf: fcf * 1e6,
+              operatingCashFlow: (nopat + da) * 1e6,
+              isProjected: true,
+            });
+          }
+
+          type ColData = {
+            year: number; isProjected?: boolean;
+            revenue: number; grossProfit: number; ebit: number; netIncome: number;
+            ebitda?: number; da?: number;
+            depreciationAmortization?: number; freeCashFlow?: number; capex?: number;
+            operatingCashFlow?: number; fcf?: number;
+            interestExpense?: number; taxExpense?: number;
+            equity?: number; cash?: number; accountsReceivable?: number; inventory?: number;
+            totalCurrentAssets?: number; ppe?: number; totalAssets?: number;
+            accountsPayable?: number; shortTermDebt?: number; totalCurrentLiabilities?: number;
+            longTermDebt?: number; totalLiabilities?: number;
+          };
+
+          const allCols: ColData[] = [...[...hist].reverse(), ...projected];
+
+          const n = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 0 });
+          const pct = (v: number) => `${v >= 0 ? "" : ""}${v.toFixed(1)}%`;
+
+          return (
           <div className="space-y-10 overflow-x-auto">
 
-            {/* Per Share Summary */}
-            {(() => {
-              const p = model.historicalPeriods[0];
-              const sh = model.assumptions.sharesOutstanding;
-              if (!p || !sh) return null;
-              const items = [
-                { label: "Revenue / Share", value: p.revenue / 1e6 / sh },
-                { label: "Gross Profit / Share", value: p.grossProfit / 1e6 / sh },
-                { label: "EBIT / Share", value: p.ebit / 1e6 / sh },
-                { label: "Net Income / Share (EPS)", value: p.netIncome / 1e6 / sh },
-                { label: "FCF / Share", value: p.freeCashFlow / 1e6 / sh },
-                { label: "Book Value / Share", value: p.equity / 1e6 / sh },
-                { label: "Cash / Share", value: p.cash / 1e6 / sh },
-              ];
-              return (
-                <div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-1 h-6 bg-blue-700 rounded"></div>
-                    <h2 className="text-base font-bold text-gray-900 uppercase tracking-wide">Per Share Summary — FY{p.year}A</h2>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                    {items.map((item) => (
-                      <div key={item.label} className="bg-white border border-gray-200 rounded-lg p-3 text-center">
-                        <p className="text-xs text-gray-500 mb-1 leading-tight">{item.label}</p>
-                        <p className="text-lg font-bold text-blue-700 font-mono">${item.value.toFixed(2)}</p>
-                      </div>
-                    ))}
-                  </div>
+            {/* Per Share Summary — all historical + projected */}
+            {sh > 0 && (
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-1 h-6 bg-blue-700 rounded"></div>
+                  <h2 className="text-base font-bold text-gray-900 uppercase tracking-wide">Per Share Summary ($)</h2>
                 </div>
-              );
-            })()}
+                <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                  <table className="text-sm w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-900 text-white">
+                        <th className="text-left px-4 py-3 w-48 font-semibold tracking-wide">Metric</th>
+                        {allCols.map((c) => (
+                          <th key={c.year} className={`px-4 py-3 text-right font-semibold tracking-wide ${c.isProjected ? "text-blue-300" : ""}`}>
+                            FY{c.year}{c.isProjected ? "E" : "A"}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { label: "Revenue / Share", fn: (c: typeof allCols[0]) => c.revenue / 1e6 / sh },
+                        { label: "Gross Profit / Share", fn: (c: typeof allCols[0]) => c.grossProfit / 1e6 / sh },
+                        { label: "EBIT / Share", fn: (c: typeof allCols[0]) => c.ebit / 1e6 / sh },
+                        { label: "EPS (Net Income / Share)", fn: (c: typeof allCols[0]) => c.netIncome / 1e6 / sh },
+                        { label: "FCF / Share", fn: (c: typeof allCols[0]) => (c.fcf ?? c.freeCashFlow ?? 0) / 1e6 / sh },
+                        { label: "Book Value / Share", fn: (c: typeof allCols[0]) => (c.equity ?? 0) / 1e6 / sh },
+                        { label: "Cash / Share", fn: (c: typeof allCols[0]) => (c.cash ?? 0) / 1e6 / sh },
+                      ].map(({ label, fn }, i) => (
+                        <tr key={label} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                          <td className="px-4 py-2.5 font-medium text-gray-700">{label}</td>
+                          {allCols.map((c) => {
+                            const val = fn(c);
+                            return (
+                              <td key={c.year} className={`px-4 py-2.5 text-right font-mono font-semibold ${c.isProjected ? "text-blue-700" : "text-gray-800"}`}>
+                                ${val.toFixed(2)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-gray-400 mt-2">Blue columns = projected (Base Case). Historical = actual reported figures.</p>
+              </div>
+            )}
 
             {/* Income Statement */}
             <div>
@@ -172,117 +242,85 @@ export default function ModelPage() {
                   <thead>
                     <tr className="bg-gray-900 text-white">
                       <th className="text-left px-4 py-3 w-64 font-semibold tracking-wide">Line Item</th>
-                      {model.historicalPeriods.map((p) => <th key={p.year} className="px-4 py-3 text-right font-semibold tracking-wide">FY{p.year}A</th>)}
+                      {allCols.map((c) => (
+                        <th key={c.year} className={`px-4 py-3 text-right font-semibold tracking-wide ${c.isProjected ? "text-blue-300" : ""}`}>
+                          FY{c.year}{c.isProjected ? "E" : "A"}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Revenue */}
                     <tr className="bg-blue-50 border-t-2 border-blue-200">
                       <td className="px-4 py-2.5 font-bold text-gray-900">Revenue</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2.5 text-right font-mono font-bold text-gray-900">
-                          {(p.revenue / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                        </td>
-                      ))}
+                      {allCols.map((c) => <td key={c.year} className={`px-4 py-2.5 text-right font-mono font-bold ${c.isProjected ? "text-blue-700" : "text-gray-900"}`}>{n(c.revenue / 1e6)}</td>)}
                     </tr>
                     <tr className="bg-blue-50">
                       <td className="px-4 py-1.5 text-xs text-blue-600 pl-8">YoY Growth %</td>
-                      {model.historicalPeriods.map((p, i) => {
-                        const prev = model.historicalPeriods[i + 1];
-                        const growth = prev ? ((p.revenue - prev.revenue) / prev.revenue) * 100 : null;
-                        return (
-                          <td key={p.year} className="px-4 py-1.5 text-right text-xs font-mono text-blue-600">
-                            {growth !== null ? `${growth >= 0 ? "+" : ""}${growth.toFixed(1)}%` : "—"}
-                          </td>
-                        );
+                      {allCols.map((c, i) => {
+                        const prev = allCols[i - 1];
+                        const g = prev ? ((c.revenue - prev.revenue) / prev.revenue) * 100 : null;
+                        return <td key={c.year} className={`px-4 py-1.5 text-right text-xs font-mono ${c.isProjected ? "text-blue-500" : "text-blue-600"}`}>{g !== null ? `${g >= 0 ? "+" : ""}${g.toFixed(1)}%` : "—"}</td>;
                       })}
                     </tr>
-                    {/* COGS */}
                     <tr className="bg-white">
                       <td className="px-4 py-2 text-gray-600 pl-8">Cost of Revenue (COGS)</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2 text-right font-mono text-gray-600">
-                          ({((p.revenue - p.grossProfit) / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })})
-                        </td>
-                      ))}
+                      {allCols.map((c) => <td key={c.year} className={`px-4 py-2 text-right font-mono ${c.isProjected ? "text-blue-600" : "text-gray-600"}`}>({n((c.revenue - c.grossProfit) / 1e6)})</td>)}
                     </tr>
-                    {/* Gross Profit */}
                     <tr className="bg-gray-50 border-t border-gray-200">
                       <td className="px-4 py-2.5 font-semibold text-gray-800">Gross Profit</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2.5 text-right font-mono font-semibold text-gray-800">
-                          {(p.grossProfit / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                        </td>
-                      ))}
+                      {allCols.map((c) => <td key={c.year} className={`px-4 py-2.5 text-right font-mono font-semibold ${c.isProjected ? "text-blue-700" : "text-gray-800"}`}>{n(c.grossProfit / 1e6)}</td>)}
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="px-4 py-1.5 text-xs text-gray-500 pl-8">Gross Margin %</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-1.5 text-right text-xs font-mono text-gray-500">
-                          {((p.grossProfit / p.revenue) * 100).toFixed(1)}%
-                        </td>
-                      ))}
+                      {allCols.map((c) => <td key={c.year} className="px-4 py-1.5 text-right text-xs font-mono text-gray-500">{pct((c.grossProfit / c.revenue) * 100)}</td>)}
                     </tr>
-                    {/* OpEx */}
+                    <tr className="bg-white border-t border-gray-200">
+                      <td className="px-4 py-2.5 font-semibold text-gray-800">EBITDA</td>
+                      {allCols.map((c) => {
+                        const ebitda = c.isProjected ? (c.ebitda ?? 0) : (c.ebit + (c.depreciationAmortization ?? 0));
+                        return <td key={c.year} className={`px-4 py-2.5 text-right font-mono font-semibold ${c.isProjected ? "text-blue-700" : "text-gray-800"}`}>{n(ebitda / 1e6)}</td>;
+                      })}
+                    </tr>
                     <tr className="bg-white">
-                      <td className="px-4 py-2 text-gray-600 pl-8">Operating Expenses</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2 text-right font-mono text-gray-600">
-                          ({(p.operatingExpenses / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })})
-                        </td>
-                      ))}
+                      <td className="px-4 py-1.5 text-xs text-gray-500 pl-8">EBITDA Margin %</td>
+                      {allCols.map((c) => {
+                        const ebitda = c.isProjected ? (c.ebitda ?? 0) : (c.ebit + (c.depreciationAmortization ?? 0));
+                        return <td key={c.year} className="px-4 py-1.5 text-right text-xs font-mono text-gray-500">{pct((ebitda / c.revenue) * 100)}</td>;
+                      })}
                     </tr>
-                    {/* EBIT */}
                     <tr className="bg-gray-50 border-t border-gray-200">
                       <td className="px-4 py-2.5 font-semibold text-gray-800">EBIT (Operating Income)</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2.5 text-right font-mono font-semibold text-gray-800">
-                          {(p.ebit / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                        </td>
-                      ))}
+                      {allCols.map((c) => <td key={c.year} className={`px-4 py-2.5 text-right font-mono font-semibold ${c.isProjected ? "text-blue-700" : "text-gray-800"}`}>{n(c.ebit / 1e6)}</td>)}
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="px-4 py-1.5 text-xs text-gray-500 pl-8">EBIT Margin %</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-1.5 text-right text-xs font-mono text-gray-500">
-                          {((p.ebit / p.revenue) * 100).toFixed(1)}%
-                        </td>
-                      ))}
+                      {allCols.map((c) => <td key={c.year} className="px-4 py-1.5 text-right text-xs font-mono text-gray-500">{pct((c.ebit / c.revenue) * 100)}</td>)}
                     </tr>
-                    {/* Interest & Tax */}
                     <tr className="bg-white">
                       <td className="px-4 py-2 text-gray-600 pl-8">Interest Expense</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2 text-right font-mono text-gray-600">
-                          ({(p.interestExpense / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })})
-                        </td>
-                      ))}
+                      {allCols.map((c) => <td key={c.year} className={`px-4 py-2 text-right font-mono ${c.isProjected ? "text-blue-500" : "text-gray-600"}`}>{c.isProjected ? "—" : `(${n((c.interestExpense ?? 0) / 1e6)})`}</td>)}
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="px-4 py-2 text-gray-600 pl-8">Income Tax Expense</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2 text-right font-mono text-gray-600">
-                          ({(p.taxExpense / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })})
-                        </td>
-                      ))}
+                      {allCols.map((c) => {
+                        const tax = c.isProjected ? c.ebit * a.taxRate : (c.taxExpense ?? 0);
+                        return <td key={c.year} className={`px-4 py-2 text-right font-mono ${c.isProjected ? "text-blue-500" : "text-gray-600"}`}>({n(tax / 1e6)})</td>;
+                      })}
                     </tr>
-                    {/* Net Income */}
                     <tr className="bg-blue-900 text-white border-t-2 border-blue-700">
                       <td className="px-4 py-2.5 font-bold">Net Income</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2.5 text-right font-mono font-bold">
-                          {(p.netIncome / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                        </td>
-                      ))}
+                      {allCols.map((c) => <td key={c.year} className="px-4 py-2.5 text-right font-mono font-bold">{n(c.netIncome / 1e6)}</td>)}
                     </tr>
                     <tr className="bg-blue-800 text-blue-200">
                       <td className="px-4 py-1.5 text-xs pl-8">Net Margin %</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-1.5 text-right text-xs font-mono">
-                          {((p.netIncome / p.revenue) * 100).toFixed(1)}%
-                        </td>
-                      ))}
+                      {allCols.map((c) => <td key={c.year} className="px-4 py-1.5 text-right text-xs font-mono">{pct((c.netIncome / c.revenue) * 100)}</td>)}
                     </tr>
+                    {sh > 0 && (
+                      <tr className="bg-blue-800 text-blue-200">
+                        <td className="px-4 py-1.5 text-xs pl-8">EPS ($)</td>
+                        {allCols.map((c) => <td key={c.year} className="px-4 py-1.5 text-right text-xs font-mono">${(c.netIncome / 1e6 / sh).toFixed(2)}</td>)}
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -299,14 +337,17 @@ export default function ModelPage() {
                   <thead>
                     <tr className="bg-gray-900 text-white">
                       <th className="text-left px-4 py-3 w-64 font-semibold tracking-wide">Line Item</th>
-                      {model.historicalPeriods.map((p) => <th key={p.year} className="px-4 py-3 text-right font-semibold tracking-wide">FY{p.year}A</th>)}
+                      {allCols.map((c) => (
+                        <th key={c.year} className={`px-4 py-3 text-right font-semibold tracking-wide ${c.isProjected ? "text-blue-300" : ""}`}>
+                          FY{c.year}{c.isProjected ? "E" : "A"}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Assets */}
                     <tr className="bg-green-900 text-white">
                       <td className="px-4 py-2 font-bold tracking-wide text-xs uppercase">Assets</td>
-                      {model.historicalPeriods.map((p) => <td key={p.year} className="px-4 py-2"></td>)}
+                      {allCols.map((c) => <td key={c.year} className="px-4 py-2"></td>)}
                     </tr>
                     {[
                       { key: "cash" as const, label: "Cash & Equivalents", indent: true, bold: false },
@@ -318,17 +359,16 @@ export default function ModelPage() {
                     ].map(({ key, label, indent, bold }, i) => (
                       <tr key={key} className={bold ? "bg-green-50 border-t border-green-200" : i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                         <td className={`px-4 py-2.5 ${bold ? "font-bold text-gray-900" : "text-gray-600"} ${indent ? "pl-8" : ""}`}>{label}</td>
-                        {model.historicalPeriods.map((p) => (
-                          <td key={p.year} className={`px-4 py-2.5 text-right font-mono ${bold ? "font-bold text-gray-900" : "text-gray-600"}`}>
-                            {(p[key] / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                        {allCols.map((c) => (
+                          <td key={c.year} className={`px-4 py-2.5 text-right font-mono ${bold ? "font-bold" : ""} ${c.isProjected ? "text-blue-400" : bold ? "text-gray-900" : "text-gray-600"}`}>
+                            {c.isProjected ? "—" : n(((c as unknown as Record<string, number>)[key] ?? 0) / 1e6)}
                           </td>
                         ))}
                       </tr>
                     ))}
-                    {/* Liabilities */}
                     <tr className="bg-red-900 text-white">
                       <td className="px-4 py-2 font-bold tracking-wide text-xs uppercase">Liabilities</td>
-                      {model.historicalPeriods.map((p) => <td key={p.year} className="px-4 py-2"></td>)}
+                      {allCols.map((c) => <td key={c.year} className="px-4 py-2"></td>)}
                     </tr>
                     {[
                       { key: "accountsPayable" as const, label: "Accounts Payable", indent: true, bold: false },
@@ -339,25 +379,25 @@ export default function ModelPage() {
                     ].map(({ key, label, indent, bold }, i) => (
                       <tr key={key} className={bold ? "bg-red-50 border-t border-red-200" : i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                         <td className={`px-4 py-2.5 ${bold ? "font-bold text-gray-900" : "text-gray-600"} ${indent ? "pl-8" : ""}`}>{label}</td>
-                        {model.historicalPeriods.map((p) => (
-                          <td key={p.year} className={`px-4 py-2.5 text-right font-mono ${bold ? "font-bold text-gray-900" : "text-gray-600"}`}>
-                            {(p[key] / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                        {allCols.map((c) => (
+                          <td key={c.year} className={`px-4 py-2.5 text-right font-mono ${bold ? "font-bold" : ""} ${c.isProjected ? "text-blue-400" : bold ? "text-gray-900" : "text-gray-600"}`}>
+                            {c.isProjected ? "—" : n(((c as unknown as Record<string, number>)[key] ?? 0) / 1e6)}
                           </td>
                         ))}
                       </tr>
                     ))}
-                    {/* Equity */}
                     <tr className="bg-gray-900 text-white border-t-2 border-gray-700">
                       <td className="px-4 py-2.5 font-bold">Total Shareholders&apos; Equity</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2.5 text-right font-mono font-bold">
-                          {(p.equity / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                      {allCols.map((c) => (
+                        <td key={c.year} className="px-4 py-2.5 text-right font-mono font-bold">
+                          {c.isProjected ? "—" : n((c.equity ?? 0) / 1e6)}
                         </td>
                       ))}
                     </tr>
                   </tbody>
                 </table>
               </div>
+              <p className="text-xs text-gray-400 mt-2">Balance sheet projections not modeled — shown as actual reported figures only.</p>
             </div>
 
             {/* Cash Flow Statement */}
@@ -371,84 +411,78 @@ export default function ModelPage() {
                   <thead>
                     <tr className="bg-gray-900 text-white">
                       <th className="text-left px-4 py-3 w-64 font-semibold tracking-wide">Line Item</th>
-                      {model.historicalPeriods.map((p) => <th key={p.year} className="px-4 py-3 text-right font-semibold tracking-wide">FY{p.year}A</th>)}
+                      {allCols.map((c) => (
+                        <th key={c.year} className={`px-4 py-3 text-right font-semibold tracking-wide ${c.isProjected ? "text-blue-300" : ""}`}>
+                          FY{c.year}{c.isProjected ? "E" : "A"}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {/* Operating */}
                     <tr className="bg-purple-900 text-white">
                       <td className="px-4 py-2 font-bold tracking-wide text-xs uppercase">Operating Activities</td>
-                      {model.historicalPeriods.map((p) => <td key={p.year} className="px-4 py-2"></td>)}
+                      {allCols.map((c) => <td key={c.year} className="px-4 py-2"></td>)}
                     </tr>
                     <tr className="bg-white">
                       <td className="px-4 py-2 text-gray-600 pl-8">Net Income</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2 text-right font-mono text-gray-600">
-                          {(p.netIncome / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                      {allCols.map((c) => (
+                        <td key={c.year} className={`px-4 py-2 text-right font-mono ${c.isProjected ? "text-blue-600" : "text-gray-600"}`}>
+                          {n(c.netIncome / 1e6)}
                         </td>
                       ))}
                     </tr>
                     <tr className="bg-gray-50">
                       <td className="px-4 py-2 text-gray-600 pl-8">Depreciation & Amortization</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2 text-right font-mono text-gray-600">
-                          {(p.depreciationAmortization / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                        </td>
-                      ))}
+                      {allCols.map((c) => {
+                        const da = c.isProjected ? (c.da ?? 0) : (c.depreciationAmortization ?? 0);
+                        return <td key={c.year} className={`px-4 py-2 text-right font-mono ${c.isProjected ? "text-blue-600" : "text-gray-600"}`}>{n(da / 1e6)}</td>;
+                      })}
                     </tr>
                     <tr className="bg-purple-50 border-t border-purple-200">
                       <td className="px-4 py-2.5 font-bold text-gray-900">Cash from Operations</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2.5 text-right font-mono font-bold text-gray-900">
-                          {(p.operatingCashFlow / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                        </td>
-                      ))}
+                      {allCols.map((c) => {
+                        const ocf = c.isProjected ? (c.operatingCashFlow ?? 0) : c.operatingCashFlow;
+                        return <td key={c.year} className={`px-4 py-2.5 text-right font-mono font-bold ${c.isProjected ? "text-blue-700" : "text-gray-900"}`}>{n(ocf / 1e6)}</td>;
+                      })}
                     </tr>
                     <tr className="bg-purple-50">
                       <td className="px-4 py-1.5 text-xs text-purple-600 pl-8">Operating Cash Flow Margin %</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-1.5 text-right text-xs font-mono text-purple-600">
-                          {((p.operatingCashFlow / p.revenue) * 100).toFixed(1)}%
-                        </td>
-                      ))}
+                      {allCols.map((c) => {
+                        const ocf = c.isProjected ? (c.operatingCashFlow ?? 0) : c.operatingCashFlow;
+                        return <td key={c.year} className="px-4 py-1.5 text-right text-xs font-mono text-purple-600">{pct((ocf / c.revenue) * 100)}</td>;
+                      })}
                     </tr>
-                    {/* Investing */}
                     <tr className="bg-purple-900 text-white">
                       <td className="px-4 py-2 font-bold tracking-wide text-xs uppercase">Investing Activities</td>
-                      {model.historicalPeriods.map((p) => <td key={p.year} className="px-4 py-2"></td>)}
+                      {allCols.map((c) => <td key={c.year} className="px-4 py-2"></td>)}
                     </tr>
                     <tr className="bg-white">
                       <td className="px-4 py-2 text-gray-600 pl-8">Capital Expenditures (CapEx)</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2 text-right font-mono text-gray-600">
-                          ({(p.capex / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })})
-                        </td>
-                      ))}
+                      {allCols.map((c) => {
+                        const capexVal = c.isProjected ? (c.capex ?? 0) : c.capex;
+                        return <td key={c.year} className={`px-4 py-2 text-right font-mono ${c.isProjected ? "text-blue-500" : "text-gray-600"}`}>({n(capexVal / 1e6)})</td>;
+                      })}
                     </tr>
-                    {/* FCF */}
                     <tr className="bg-gray-900 text-white border-t-2 border-gray-700">
                       <td className="px-4 py-2.5 font-bold">Free Cash Flow</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-2.5 text-right font-mono font-bold">
-                          {(p.freeCashFlow / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                        </td>
-                      ))}
+                      {allCols.map((c) => {
+                        const fcfVal = c.isProjected ? (c.fcf ?? 0) : (c.freeCashFlow ?? 0);
+                        return <td key={c.year} className="px-4 py-2.5 text-right font-mono font-bold">{n(fcfVal / 1e6)}</td>;
+                      })}
                     </tr>
                     <tr className="bg-gray-800 text-gray-300">
                       <td className="px-4 py-1.5 text-xs pl-8">FCF Margin %</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-1.5 text-right text-xs font-mono">
-                          {((p.freeCashFlow / p.revenue) * 100).toFixed(1)}%
-                        </td>
-                      ))}
+                      {allCols.map((c) => {
+                        const fcfVal = c.isProjected ? (c.fcf ?? 0) : (c.freeCashFlow ?? 0);
+                        return <td key={c.year} className="px-4 py-1.5 text-right text-xs font-mono">{pct((fcfVal / c.revenue) * 100)}</td>;
+                      })}
                     </tr>
                     <tr className="bg-gray-800 text-gray-300">
                       <td className="px-4 py-1.5 text-xs pl-8">CapEx % of Revenue</td>
-                      {model.historicalPeriods.map((p) => (
-                        <td key={p.year} className="px-4 py-1.5 text-right text-xs font-mono">
-                          {((p.capex / p.revenue) * 100).toFixed(1)}%
-                        </td>
-                      ))}
+                      {allCols.map((c) => {
+                        const capexVal = c.isProjected ? (c.capex ?? 0) : c.capex;
+                        return <td key={c.year} className="px-4 py-1.5 text-right text-xs font-mono">{pct((capexVal / c.revenue) * 100)}</td>;
+                      })}
                     </tr>
                   </tbody>
                 </table>
@@ -456,6 +490,9 @@ export default function ModelPage() {
             </div>
 
           </div>
+        )})()}
+        {activeTab === "comps" && (
+          <ValuationComps model={model} />
         )}
       </main>
     </div>

@@ -183,6 +183,7 @@ export function buildDCFSheet(
 
   // ── SENSITIVITY TABLE ──────────────────────────────────────────────────────
   buildSensitivityTable(ws, row, model, proj, fcfRow, years, pvSumAddr, sharesRef, evAddr);
+  buildGrowthMarginSensTable(ws, row + 12, model, sharesRef);
 }
 
 /**
@@ -280,6 +281,116 @@ function buildSensitivityTable(
         ws.getCell(addr).font = { bold: true, color: { argb: BLACK_FORMULA }, size: 10, name: "Calibri" };
         ws.getCell(addr).note = {
           texts: [{ font: { size: 9 }, text: "Base case: WACC = Base, TGR = Base.\nShould match the ★ IV/Share figure above." }],
+        };
+      }
+    });
+  });
+}
+
+function buildGrowthMarginSensTable(
+  ws: ExcelJS.Worksheet,
+  startRow: number,
+  model: DCFModel,
+  sharesRef: string
+) {
+  const a = model.assumptions;
+  const hist = model.historicalPeriods;
+  if (!hist.length) return;
+
+  const baseGrowth = a.revenueGrowthBase.reduce((s, v) => s + v, 0) / a.revenueGrowthBase.length;
+  const baseEbitMargin = a.ebitMarginBase;
+  const wacc = a.waccBase;
+  const tgr = a.terminalGrowthRate;
+  const taxRate = a.taxRate;
+  const depPct = a.depreciationPct;
+  const capexPct = a.capexPct;
+  const netDebt = a.netDebt;
+  const minInt = a.minorityInterest;
+  const years = a.projectionYears;
+  const rev0 = hist[0].revenue / 1e6;
+
+  // 5 growth rates: baseGrowth ± 2% in 1% steps
+  const growthVals = [-0.02, -0.01, 0, 0.01, 0.02].map((d) => baseGrowth + d);
+  // 5 EBIT margins: baseEbitMargin ± 3% in 1.5% steps
+  const marginVals = [-0.03, -0.015, 0, 0.015, 0.03].map((d) => baseEbitMargin + d);
+
+  ws.mergeCells(`A${startRow}:I${startRow}`);
+  ws.getCell(`A${startRow}`).value =
+    "Revenue Growth CAGR × EBIT Margin Sensitivity — Intrinsic Value / Share ($)";
+  Object.assign(ws.getCell(`A${startRow}`), headerStyle());
+  ws.getRow(startRow).height = 20;
+
+  const labelRow = startRow + 1;
+  ws.getCell(`A${labelRow}`).value = "Rev Growth ↓  /  EBIT Margin →";
+  Object.assign(ws.getCell(`A${labelRow}`), subheaderStyle());
+
+  // Margin header row
+  marginVals.forEach((m, j) => {
+    const addr = `${col(j + 2)}${labelRow}`;
+    ws.getCell(addr).value = m;
+    Object.assign(ws.getCell(addr), subheaderStyle());
+    ws.getCell(addr).numFmt = "0.0%";
+    if (j === 2) {
+      ws.getCell(addr).fill = { type: "pattern", pattern: "solid", fgColor: { argb: SENSITIVITY_CENTER } };
+      ws.getCell(addr).font = { bold: true, name: "Calibri", size: 10 };
+    }
+  });
+
+  // Data rows
+  growthVals.forEach((g, i) => {
+    const rowNum = labelRow + 1 + i;
+    ws.getCell(`A${rowNum}`).value = g;
+    Object.assign(ws.getCell(`A${rowNum}`), labelStyle());
+    ws.getCell(`A${rowNum}`).numFmt = "0.0%";
+    if (i === 2) {
+      ws.getCell(`A${rowNum}`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: SENSITIVITY_CENTER } };
+      ws.getCell(`A${rowNum}`).font = { bold: true, name: "Calibri", size: 10 };
+    }
+
+    marginVals.forEach((m, j) => {
+      const addr = `${col(j + 2)}${rowNum}`;
+
+      if (wacc <= tgr) {
+        ws.getCell(addr).value = "N/A";
+        Object.assign(ws.getCell(addr), labelStyle());
+        return;
+      }
+
+      // Build inline formula: compute IVPS directly with literal numbers
+      // rev_yr = rev0 * (1+g)^yr
+      // FCF_yr = rev_yr * m * (1-tax) + rev_yr * depPct - rev_yr * capexPct
+      //        = rev_yr * (m*(1-tax) + depPct - capexPct)
+      const gF = g.toFixed(6);
+      const wF = wacc.toFixed(6);
+      const tF = tgr.toFixed(6);
+      const fcfMultiplier = (m * (1 - taxRate) + depPct - capexPct).toFixed(6);
+      const r0 = rev0.toFixed(4);
+
+      // PV(FCF_yr) = rev0*(1+g)^yr * fcfMult / (1+w)^(yr-0.5)
+      const pvFcfTerms = Array.from({ length: years }, (_, idx) => {
+        const yr = idx + 1;
+        return `${r0}*((1+${gF})^${yr})*${fcfMultiplier}/((1+${wF})^${yr - 0.5})`;
+      }).join("+");
+
+      // Terminal FCF = rev0*(1+g)^years * fcfMult
+      // TV = termFCF*(1+tgr)/(wacc-tgr)
+      // PV_TV = TV/(1+wacc)^years
+      const termFcf = `${r0}*((1+${gF})^${years})*${fcfMultiplier}`;
+      const pvTv = `(${termFcf})*(1+${tF})/(${wF}-${tF})/((1+${wF})^${years})`;
+
+      const netDebtF = netDebt.toFixed(4);
+      const minIntF = minInt.toFixed(4);
+
+      ws.getCell(addr).value = {
+        formula: `=(${pvFcfTerms}+${pvTv}-${netDebtF}-${minIntF})/${sharesRef}`,
+      };
+      Object.assign(ws.getCell(addr), formulaStyle("#,##0.00"));
+
+      if (i === 2 && j === 2) {
+        ws.getCell(addr).fill = { type: "pattern", pattern: "solid", fgColor: { argb: SENSITIVITY_CENTER } };
+        ws.getCell(addr).font = { bold: true, color: { argb: BLACK_FORMULA }, size: 10, name: "Calibri" };
+        ws.getCell(addr).note = {
+          texts: [{ font: { size: 9 }, text: "Base case: avg revenue growth, base EBIT margin, base WACC." }],
         };
       }
     });

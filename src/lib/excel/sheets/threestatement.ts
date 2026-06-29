@@ -198,6 +198,30 @@ export function buildThreeStatementSheets(
   }
   isRow++;
 
+  // EBITDA = EBIT + D&A
+  is.getCell(`A${isRow}`).value = "EBITDA";
+  Object.assign(is.getCell(`A${isRow}`), labelStyle());
+  is.getCell(`A${isRow}`).font = { ...labelStyle().font, bold: true };
+  for (let c = 2; c <= histCols + years + 1; c++) {
+    is.getCell(`${colLetter(c)}${isRow}`).value = {
+      formula: `=${colLetter(c)}${ebitRow}+'Cash Flow'!${colLetter(c)}4`,
+    };
+    Object.assign(is.getCell(`${colLetter(c)}${isRow}`), formulaStyle(currencyFmt(1)));
+    is.getCell(`${colLetter(c)}${isRow}`).font = { bold: true, color: { argb: BLACK_FORMULA }, size: 10, name: "Calibri" };
+  }
+  const ebitdaRow = isRow++;
+
+  // EBITDA Margin %
+  is.getCell(`A${isRow}`).value = "  EBITDA Margin %";
+  Object.assign(is.getCell(`A${isRow}`), labelStyle());
+  for (let c = 2; c <= histCols + years + 1; c++) {
+    is.getCell(`${colLetter(c)}${isRow}`).value = {
+      formula: `=${colLetter(c)}${ebitdaRow}/${colLetter(c)}${revenueRow}`,
+    };
+    Object.assign(is.getCell(`${colLetter(c)}${isRow}`), formulaStyle("0.0%"));
+  }
+  isRow++;
+
   // Net Income (simplified: EBIT - Interest - Tax)
   is.getCell(`A${isRow}`).value = "  Interest Expense";
   Object.assign(is.getCell(`A${isRow}`), labelStyle());
@@ -232,6 +256,18 @@ export function buildThreeStatementSheets(
       formula: `=${colLetter(c)}${ebitRow}-${colLetter(c)}${intRow}-${colLetter(c)}${taxRow}`,
     };
     Object.assign(is.getCell(`${colLetter(c)}${isRow}`), formulaStyle(currencyFmt(1)));
+  }
+  const netIncomeRow = isRow;
+  isRow++;
+
+  // EPS = Net Income / Shares Outstanding
+  is.getCell(`A${isRow}`).value = "  EPS (Diluted)";
+  Object.assign(is.getCell(`A${isRow}`), labelStyle());
+  for (let c = 2; c <= histCols + years + 1; c++) {
+    is.getCell(`${colLetter(c)}${isRow}`).value = {
+      formula: `=${colLetter(c)}${netIncomeRow}/Assumptions!${amap.sharesOut}`,
+    };
+    Object.assign(is.getCell(`${colLetter(c)}${isRow}`), formulaStyle("#,##0.00"));
   }
   isRow++;
 
@@ -348,6 +384,102 @@ export function buildThreeStatementSheets(
     cf.getCell(`${colLetter(c)}${cfRow}`).font = { bold: true, color: { argb: BLACK_FORMULA }, size: 10, name: "Calibri" };
   }
   const fcfRow = cfRow++;
+
+  // ─── BALANCE SHEET ──────────────────────────────────────────────────────────
+  const bs = wb.addWorksheet("Balance Sheet", {
+    properties: { tabColor: { argb: "FF4472C4" } },
+  });
+  bs.getColumn("A").width = 32;
+  for (let c = 2; c <= histCols + years + 2; c++) bs.getColumn(c).width = 14;
+
+  bs.mergeCells(`A1:${colLetter(histCols + years + 1)}1`);
+  const bsTitle = bs.getCell("A1");
+  bsTitle.value = `${model.companyName} — Balance Sheet ($${model.currency}M)`;
+  Object.assign(bsTitle, headerStyle());
+  bs.getRow(1).height = 22;
+
+  // Year headers
+  const bsHdr = bs.getRow(2);
+  for (let i = hist.length - 1; i >= 0; i--) {
+    bsHdr.getCell(histCols - i + 1).value = `FY${hist[i].year}A`;
+    Object.assign(bsHdr.getCell(histCols - i + 1), subheaderStyle());
+  }
+  for (let yr = 1; yr <= years; yr++) {
+    bsHdr.getCell(projStartCol + yr - 1).value = `FY${latestYear + yr}E`;
+    Object.assign(bsHdr.getCell(projStartCol + yr - 1), subheaderStyle());
+  }
+  bs.getRow(2).height = 18;
+
+  let bsRow = 3;
+
+  function bsSection(title: string, argb: string) {
+    bs.mergeCells(`A${bsRow}:${colLetter(histCols + years + 1)}${bsRow}`);
+    const c = bs.getCell(`A${bsRow}`);
+    c.value = title;
+    c.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 10, name: "Calibri" };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: argb } };
+    bsRow++;
+  }
+
+  function bsLine(
+    label: string,
+    getValue: (p: typeof hist[0]) => number,
+    bold = false,
+    whiteText = false
+  ) {
+    bs.getCell(`A${bsRow}`).value = bold ? label : `  ${label}`;
+    Object.assign(bs.getCell(`A${bsRow}`), labelStyle());
+    if (bold) bs.getCell(`A${bsRow}`).font = { ...labelStyle().font, bold: true };
+    if (whiteText) {
+      bs.getCell(`A${bsRow}`).font = { bold: true, color: { argb: "FFFFFFFF" }, size: 10, name: "Calibri" };
+      bs.getCell(`A${bsRow}`).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F3864" } };
+    }
+
+    // Historical columns
+    for (let i = hist.length - 1; i >= 0; i--) {
+      const col = histCols - i + 1;
+      const cell = bs.getCell(`${colLetter(col)}${bsRow}`);
+      cell.value = getValue(hist[i]) / 1e6;
+      Object.assign(cell, formulaStyle(currencyFmt(1)));
+      if (bold) cell.font = { bold: true, color: { argb: BLACK_FORMULA }, size: 10, name: "Calibri" };
+      if (whiteText) {
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 10, name: "Calibri" };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F3864" } };
+      }
+    }
+
+    // Projected columns — empty (balance sheet not projected)
+    for (let yr = 1; yr <= years; yr++) {
+      const col = projStartCol + yr - 1;
+      const cell = bs.getCell(`${colLetter(col)}${bsRow}`);
+      cell.value = "—";
+      Object.assign(cell, labelStyle());
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+    }
+
+    bsRow++;
+  }
+
+  // ASSETS
+  bsSection("ASSETS", "FF375623");
+  bsLine("Cash & Equivalents", (p) => p.cash);
+  bsLine("Accounts Receivable", (p) => p.accountsReceivable);
+  bsLine("Inventory", (p) => p.inventory);
+  bsLine("Total Current Assets", (p) => p.totalCurrentAssets, true);
+  bsLine("PP&E (Net)", (p) => p.ppe);
+  bsLine("Total Assets", (p) => p.totalAssets, true);
+
+  // LIABILITIES
+  bsSection("LIABILITIES", "FFC00000");
+  bsLine("Accounts Payable", (p) => p.accountsPayable);
+  bsLine("Short-Term Debt", (p) => p.shortTermDebt);
+  bsLine("Total Current Liabilities", (p) => p.totalCurrentLiabilities, true);
+  bsLine("Long-Term Debt", (p) => p.longTermDebt);
+  bsLine("Total Liabilities", (p) => p.totalLiabilities, true);
+
+  // EQUITY
+  bsSection("EQUITY", "FF1F3864");
+  bsLine("Total Shareholders' Equity", (p) => p.equity, true, true);
 
   // Build return value — projection-year cross-sheet references
   const projFcfCells = Array.from({ length: years }, (_, i) =>
