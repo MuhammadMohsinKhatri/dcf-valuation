@@ -75,7 +75,7 @@ export async function buildDCFExcel(model: DCFModel): Promise<Buffer> {
 
     // Page setup — landscape, Letter size, fit to 1 page wide
     ws.pageSetup = {
-      paperSize: 1,          // Letter
+      paperSize: 1 as ExcelJS.PaperSize,
       orientation: "landscape",
       fitToPage: true,
       fitToWidth: 1,
