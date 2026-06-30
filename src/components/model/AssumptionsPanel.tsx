@@ -70,11 +70,11 @@ export function AssumptionsPanel({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-1 h-6 bg-gray-800 rounded"></div>
+          <div className="w-1 h-6 bg-[#0f2744] rounded"></div>
           <h2 className="text-base font-bold text-gray-900 uppercase tracking-wide">Model Assumptions</h2>
         </div>
         <Button onClick={runAI} loading={loading} size="sm">
-          ✨ AI Auto-Fill
+          AI Auto-Fill
         </Button>
       </div>
 
@@ -84,17 +84,14 @@ export function AssumptionsPanel({
         </div>
       )}
 
-      {/* Analyst Narrative */}
+      {/* Analyst Narrative — structured sections */}
       {narrative && (
         <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="bg-gray-900 px-5 py-3 flex items-center gap-2">
-            <span className="text-yellow-400 text-sm">✦</span>
+          <div className="bg-[#0f2744] px-5 py-3 flex items-center justify-between">
             <p className="text-sm font-bold text-white uppercase tracking-wide">Analyst Narrative</p>
-            <span className="ml-auto text-xs text-gray-400 font-mono">AI Generated — DeepSeek</span>
+            <span className="text-xs text-blue-300 font-mono">BOE AI Engine</span>
           </div>
-          <div className="bg-blue-50 px-5 py-4 text-sm text-gray-700 leading-relaxed whitespace-pre-line border-l-4 border-blue-500">
-            {narrative}
-          </div>
+          <NarrativeSections text={narrative} />
         </div>
       )}
 
@@ -123,14 +120,14 @@ export function AssumptionsPanel({
               </tr>
             </thead>
             <tbody>
-              {(["Bear", "Base", "Bull"] as const).map((s) => {
+              {(["Bear", "Base", "Bull"] as const).map((s, si) => {
                 const key = `revenueGrowth${s}` as keyof DCFAssumptions;
                 const arr = local[key] as number[];
-                const headerBg = s === "Bear" ? "bg-red-800" : s === "Bull" ? "bg-green-800" : "bg-yellow-700";
-                const rowBg = s === "Bear" ? "bg-red-50" : s === "Bull" ? "bg-green-50" : "bg-yellow-50";
+                const labelColor = s === "Bear" ? "text-red-700" : s === "Bull" ? "text-green-700" : "text-[#1a3a5c]";
+                const rowBg = si % 2 === 0 ? "bg-white" : "bg-gray-50";
                 return (
                   <tr key={s} className={rowBg}>
-                    <td className={`px-4 py-2 font-bold text-white text-xs uppercase tracking-wide ${headerBg}`}>{s}</td>
+                    <td className={`px-4 py-2 font-bold text-xs uppercase tracking-wide bg-gray-100 border-r border-gray-200 ${labelColor}`}>{s}</td>
                     {arr.map((v, i) => (
                       <td key={i} className="px-2 py-1.5 text-right">
                         <input
@@ -138,7 +135,7 @@ export function AssumptionsPanel({
                           step="0.1"
                           value={(v * 100).toFixed(1)}
                           onChange={(e) => updateGrowth(s, i, parseFloat(e.target.value))}
-                          className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-blue-700 font-mono text-sm focus:ring-1 focus:ring-blue-400 bg-white"
+                          className="w-20 text-right border border-gray-200 rounded px-2 py-1 text-gray-900 font-mono text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-yellow-50"
                         />
                       </td>
                     ))}
@@ -156,26 +153,6 @@ export function AssumptionsPanel({
           <div className="w-1 h-6 bg-blue-600 rounded"></div>
           <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Key Assumptions</h3>
         </div>
-        {/* Explain buttons for key assumptions */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
-            assumptionKey="WACC" value={`${(local.waccBase * 100).toFixed(1)}%`}
-            bearValue={`${(local.waccBear * 100).toFixed(1)}%`} bullValue={`${(local.waccBull * 100).toFixed(1)}%`}
-            label="WACC" />
-          <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
-            assumptionKey="EBIT Margin" value={`${(local.ebitMarginBase * 100).toFixed(1)}%`}
-            bearValue={`${(local.ebitMarginBear * 100).toFixed(1)}%`} bullValue={`${(local.ebitMarginBull * 100).toFixed(1)}%`}
-            label="EBIT Margin" />
-          <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
-            assumptionKey="Terminal Growth Rate" value={`${(local.terminalGrowthRate * 100).toFixed(1)}%`}
-            label="Terminal Growth Rate" />
-          <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
-            assumptionKey="Tax Rate" value={`${(local.taxRate * 100).toFixed(1)}%`}
-            label="Tax Rate" />
-          <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
-            assumptionKey="CapEx % Revenue" value={`${(local.capexPct * 100).toFixed(1)}%`}
-            label="CapEx % Revenue" />
-        </div>
         <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <table className="text-sm w-full border-collapse">
             <thead>
@@ -188,21 +165,29 @@ export function AssumptionsPanel({
             </thead>
             <tbody>
               {[
-                { label: "EBIT Margin", bearKey: "ebitMarginBear" as const, baseKey: "ebitMarginBase" as const, bullKey: "ebitMarginBull" as const, pct: true },
-                { label: "WACC", bearKey: "waccBear" as const, baseKey: "waccBase" as const, bullKey: "waccBull" as const, pct: true },
-              ].map(({ label, bearKey, baseKey, bullKey, pct }, i) => (
+                { label: "EBIT Margin", bearKey: "ebitMarginBear" as const, baseKey: "ebitMarginBase" as const, bullKey: "ebitMarginBull" as const, pct: true,
+                  explainValue: `${(local.ebitMarginBase * 100).toFixed(1)}%`, explainBear: `${(local.ebitMarginBear * 100).toFixed(1)}%`, explainBull: `${(local.ebitMarginBull * 100).toFixed(1)}%` },
+                { label: "WACC", bearKey: "waccBear" as const, baseKey: "waccBase" as const, bullKey: "waccBull" as const, pct: true,
+                  explainValue: `${(local.waccBase * 100).toFixed(1)}%`, explainBear: `${(local.waccBear * 100).toFixed(1)}%`, explainBull: `${(local.waccBull * 100).toFixed(1)}%` },
+              ].map(({ label, bearKey, baseKey, bullKey, pct, explainValue, explainBear, explainBull }, i) => (
                 <tr key={label} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                  <td className="px-4 py-2.5 font-medium text-gray-700">{label}</td>
+                  <td className="px-4 py-2.5 font-medium text-gray-700">
+                    <div className="flex items-center gap-2">
+                      {label}
+                      <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
+                        assumptionKey={label} value={explainValue} bearValue={explainBear} bullValue={explainBull} label={label} />
+                    </div>
+                  </td>
                   {[bearKey, baseKey, bullKey].map((key, j) => {
                     const val = local[key] as number;
-                    const color = j === 0 ? "text-red-700" : j === 2 ? "text-green-700" : "text-yellow-700";
+                    const labelColor = j === 0 ? "text-red-700" : j === 2 ? "text-green-700" : "text-[#1a3a5c]";
                     return (
                       <td key={key} className="px-3 py-1.5 text-right">
                         <input
                           type="number" step="0.01"
                           value={pct ? (val * 100).toFixed(2) : val}
                           onChange={(e) => updateField(key, (pct ? parseFloat(e.target.value) / 100 : parseFloat(e.target.value)) as DCFAssumptions[typeof key])}
-                          className={`w-24 text-right border border-gray-300 rounded px-2 py-1 font-mono text-sm focus:ring-1 focus:ring-blue-400 ${color}`}
+                          className={`w-24 text-right border border-gray-200 rounded px-2 py-1 font-mono text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-yellow-50 ${labelColor}`}
                         />
                       </td>
                     );
@@ -226,7 +211,13 @@ export function AssumptionsPanel({
             const val = local[key] as number;
             return (
               <div key={key} className="bg-white border border-gray-200 rounded-lg p-3">
-                <label className="text-xs text-gray-500 uppercase tracking-wide block mb-1.5">{label}</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs text-gray-500 uppercase tracking-wide">{label}</label>
+                  {pct && (
+                    <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
+                      assumptionKey={label} value={`${(val * 100).toFixed(1)}%`} label={label} />
+                  )}
+                </div>
                 <input
                   type="number"
                   step={pct ? "0.01" : "1"}
@@ -235,7 +226,7 @@ export function AssumptionsPanel({
                     const n = parseFloat(e.target.value);
                     updateField(key, (pct ? n / 100 : n) as DCFAssumptions[typeof key]);
                   }}
-                  className="w-full text-right border border-gray-300 rounded px-2 py-1.5 text-blue-700 font-mono text-sm focus:ring-1 focus:ring-blue-400"
+                  className="w-full text-right border border-gray-200 rounded px-2 py-1.5 text-gray-900 font-mono text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-yellow-50"
                 />
               </div>
             );
@@ -275,4 +266,67 @@ export function AssumptionsPanel({
 
     </div>
   );
+}
+
+const NARRATIVE_SECTIONS = [
+  { key: "Business Overview", accent: "bg-slate-600" },
+  { key: "Investment Thesis", accent: "bg-[#0f2744]" },
+  { key: "Revenue Drivers", accent: "bg-blue-600" },
+  { key: "Margin Outlook", accent: "bg-indigo-600" },
+  { key: "Capital Allocation", accent: "bg-purple-600" },
+  { key: "Key Risks", accent: "bg-red-600" },
+  { key: "Valuation Summary", accent: "bg-green-700" },
+  { key: "Why Bull Case", accent: "bg-emerald-600" },
+  { key: "Why Bear Case", accent: "bg-rose-700" },
+];
+
+function NarrativeSections({ text }: { text: string }) {
+  const sections = parseSections(text);
+
+  if (sections.length === 0) {
+    return (
+      <div className="px-5 py-4 bg-blue-50 border-l-4 border-blue-500 text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+        {text}
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-gray-100">
+      {sections.map(({ title, body }, i) => {
+        const meta = NARRATIVE_SECTIONS.find((s) => s.key.toLowerCase() === title.toLowerCase());
+        const accent = meta?.accent ?? "bg-gray-500";
+        return (
+          <div key={i} className="px-5 py-4 flex gap-4 hover:bg-gray-50 transition-colors">
+            <div className={`w-0.5 rounded-full flex-shrink-0 mt-1 self-stretch ${accent}`}></div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{title}</p>
+              <p className="text-sm text-gray-700 leading-relaxed">{body}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function parseSections(text: string): { title: string; body: string }[] {
+  const knownHeaders = NARRATIVE_SECTIONS.map((s) => s.key);
+  const result: { title: string; body: string }[] = [];
+
+  for (const header of knownHeaders) {
+    const patterns = [
+      new RegExp(`\\*\\*${header}\\*\\*[:\\s]*([\\s\\S]*?)(?=\\*\\*(?:${knownHeaders.join("|")})\\*\\*|$)`, "i"),
+      new RegExp(`${header}[:\\n]+([\\s\\S]*?)(?=(?:${knownHeaders.join("|")})[:\\n]|$)`, "i"),
+    ];
+    for (const re of patterns) {
+      const m = text.match(re);
+      if (m?.[1]?.trim()) {
+        result.push({ title: header, body: m[1].trim().replace(/\n+/g, " ") });
+        break;
+      }
+    }
+  }
+
+  return result;
 }

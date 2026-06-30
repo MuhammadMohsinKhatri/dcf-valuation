@@ -2,6 +2,8 @@
 import { useMemo } from "react";
 import { fmt } from "@/lib/utils";
 import type { DCFModel, Scenario } from "@/types/model";
+import { ExplainButton } from "./ExplainButton";
+import { AskCell } from "./AskCellModal";
 
 interface Props {
   model: DCFModel;
@@ -192,14 +194,17 @@ export function DCFOutput({ model, scenario }: Props) {
           <div>
             <p className="text-[10px] text-blue-300 uppercase tracking-widest">WACC</p>
             <p className="text-lg font-bold text-white">{fmt(result.wacc * 100, 2)}%</p>
+            <ExplainButton ticker={model.ticker} companyName={model.companyName} sector={model.sector ?? ""} assumptionKey="WACC" value={`${fmt(result.wacc * 100, 2)}%`} bearValue={`${fmt(a.waccBear * 100, 2)}%`} bullValue={`${fmt(a.waccBull * 100, 2)}%`} label="WACC" />
           </div>
           <div>
             <p className="text-[10px] text-blue-300 uppercase tracking-widest">Terminal Growth</p>
             <p className="text-lg font-bold text-white">{fmt(a.terminalGrowthRate * 100, 1)}%</p>
+            <ExplainButton ticker={model.ticker} companyName={model.companyName} sector={model.sector ?? ""} assumptionKey="Terminal Growth Rate" value={`${fmt(a.terminalGrowthRate * 100, 1)}%`} label="Terminal Growth Rate" />
           </div>
           <div>
             <p className="text-[10px] text-blue-300 uppercase tracking-widest">TV % of EV</p>
             <p className="text-lg font-bold text-white">{fmt(result.tvPct, 1)}%</p>
+            <ExplainButton ticker={model.ticker} companyName={model.companyName} sector={model.sector ?? ""} assumptionKey="Terminal Value % of EV" value={`${fmt(result.tvPct, 1)}%`} label="TV % of EV" historicalAvg="Typically 60–80% for mature companies" />
           </div>
         </div>
       </div>
@@ -237,9 +242,21 @@ export function DCFOutput({ model, scenario }: Props) {
               ].map(({ label, fn, bold }, i) => (
                 <tr key={label} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                   <td className={`px-5 py-2 text-gray-700 ${bold ? "font-bold" : ""}`}>{label}</td>
-                  <td className={`px-5 py-2 text-right font-mono border-l border-gray-200 ${bold ? "font-bold text-red-700" : "text-red-600"}`}>{fn(bearResult)}</td>
-                  <td className={`px-5 py-2 text-right font-mono border-l border-gray-200 bg-blue-50 ${bold ? "font-bold text-[#1a3a5c]" : "text-blue-800"}`}>{fn(baseResult)}</td>
-                  <td className={`px-5 py-2 text-right font-mono border-l border-gray-200 ${bold ? "font-bold text-green-700" : "text-green-700"}`}>{fn(bullResult)}</td>
+                  <td className={`px-5 py-2 text-right font-mono border-l border-gray-200 ${bold ? "font-bold text-red-700" : "text-red-600"}`}>
+                    <AskCell ticker={model.ticker} companyName={model.companyName} cellLabel={`${label} (Bear)`} cellValue={fn(bearResult)} modelContext={{ scenario: "bear", wacc: a.waccBear, ebitMargin: a.ebitMarginBear }}>
+                      {fn(bearResult)}
+                    </AskCell>
+                  </td>
+                  <td className={`px-5 py-2 text-right font-mono border-l border-gray-200 bg-blue-50 ${bold ? "font-bold text-[#1a3a5c]" : "text-blue-800"}`}>
+                    <AskCell ticker={model.ticker} companyName={model.companyName} cellLabel={`${label} (Base)`} cellValue={fn(baseResult)} modelContext={{ scenario: "base", wacc: a.waccBase, ebitMargin: a.ebitMarginBase }}>
+                      {fn(baseResult)}
+                    </AskCell>
+                  </td>
+                  <td className={`px-5 py-2 text-right font-mono border-l border-gray-200 ${bold ? "font-bold text-green-700" : "text-green-700"}`}>
+                    <AskCell ticker={model.ticker} companyName={model.companyName} cellLabel={`${label} (Bull)`} cellValue={fn(bullResult)} modelContext={{ scenario: "bull", wacc: a.waccBull, ebitMargin: a.ebitMarginBull }}>
+                      {fn(bullResult)}
+                    </AskCell>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -277,7 +294,11 @@ export function DCFOutput({ model, scenario }: Props) {
               </tr>
               <tr className="bg-[#0f2744] text-white border-t-2 border-[#0f2744]">
                 <td className="px-5 py-2.5 font-bold">= Enterprise Value (EV)</td>
-                <td className="px-5 py-2.5 text-right font-mono font-bold border-l border-blue-800">{fmt(result.ev, 1)}</td>
+                <td className="px-5 py-2.5 text-right font-mono font-bold border-l border-blue-800">
+                  <AskCell ticker={model.ticker} companyName={model.companyName} cellLabel="Enterprise Value ($M)" cellValue={`$${fmt(result.ev, 1)}M`} modelContext={{ ev: result.ev, pvFcfs: result.sumPVFcf, pvTV: result.pvTV }}>
+                    {fmt(result.ev, 1)}
+                  </AskCell>
+                </td>
                 <td className="px-5 py-2.5 text-right font-mono font-bold border-l border-blue-800">${fmt(result.ev / shares, 2)}</td>
                 <td className="px-5 py-2.5 text-right font-mono border-l border-blue-800">100.0%</td>
               </tr>
@@ -304,7 +325,11 @@ export function DCFOutput({ model, scenario }: Props) {
               <tr className="bg-gray-900 text-white border-t-2 border-gray-700">
                 <td className="px-5 py-2.5 font-bold">= Equity Value / Share (IVPS)</td>
                 <td className="px-5 py-2.5 text-right font-mono font-bold text-green-400 border-l border-gray-700">{fmt(result.equity, 1)}</td>
-                <td className="px-5 py-2.5 text-right font-mono font-bold text-green-400 border-l border-gray-700">${fmt(result.ivps, 2)}</td>
+                <td className="px-5 py-2.5 text-right font-mono font-bold text-green-400 border-l border-gray-700">
+                  <AskCell ticker={model.ticker} companyName={model.companyName} cellLabel="Intrinsic Value Per Share (IVPS)" cellValue={`$${fmt(result.ivps, 2)}`} modelContext={{ ivps: result.ivps, ev: result.ev, netDebt: a.netDebt, shares: a.sharesOutstanding }}>
+                    ${fmt(result.ivps, 2)}
+                  </AskCell>
+                </td>
                 <td className="px-5 py-2.5 text-right font-mono text-gray-400 border-l border-gray-700">—</td>
               </tr>
             </tbody>

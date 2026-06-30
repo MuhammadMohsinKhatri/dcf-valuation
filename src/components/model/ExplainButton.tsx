@@ -60,9 +60,9 @@ export function ExplainButton({ ticker, companyName, sector, assumptionKey, valu
       <button
         onClick={explain}
         title={`Explain ${label}`}
-        className="inline-flex items-center gap-1 px-2 py-0.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded transition-colors"
+        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-full transition-colors font-medium"
       >
-        💡 Explain
+        💡 {label}
       </button>
 
       {open && (

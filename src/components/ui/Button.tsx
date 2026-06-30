@@ -15,15 +15,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={cn(
-          "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none",
+          "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none tracking-tight",
           {
-            "bg-blue-700 text-white hover:bg-blue-800": variant === "primary",
-            "bg-gray-100 text-gray-900 hover:bg-gray-200 border border-gray-300": variant === "secondary",
-            "hover:bg-gray-100 text-gray-700": variant === "ghost",
+            "bg-[#0f2744] text-white hover:bg-[#1a3a5c]": variant === "primary",
+            "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-gray-300": variant === "secondary",
+            "hover:bg-gray-100 text-gray-600": variant === "ghost",
             "bg-red-600 text-white hover:bg-red-700": variant === "danger",
-            "h-8 px-3 text-sm": size === "sm",
-            "h-10 px-4 text-sm": size === "md",
-            "h-11 px-6 text-base": size === "lg",
+            "h-7 px-3 text-xs": size === "sm",
+            "h-9 px-4 text-sm": size === "md",
+            "h-10 px-5 text-sm": size === "lg",
           },
           className
         )}

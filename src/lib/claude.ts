@@ -78,7 +78,7 @@ Return ONLY valid JSON matching this exact schema:
       "rationale": "string (1-2 sentence explanation)"
     }
   ],
-  "narrative": "string (2-3 paragraph analyst narrative explaining key assumptions and risks)"
+  "narrative": "string — structured with these exact bold headers on separate lines: **Business Overview** **Investment Thesis** **Revenue Drivers** **Margin Outlook** **Capital Allocation** **Key Risks** **Valuation Summary** **Why Bull Case** **Why Bear Case** — each followed by 1-2 sentences of analysis"
 }
 
 All rates should be decimals (e.g., 0.05 for 5%). EBIT margins and growth rates must be realistic for the sector.

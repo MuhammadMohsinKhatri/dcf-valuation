@@ -1,18 +1,39 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f9fafb;
+  --background: #f4f5f7;
   --foreground: #111827;
+  --navy: #0f2744;
+  --navy-mid: #1a3a5c;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Inter, system-ui, sans-serif;
+  font-family: Inter, "Helvetica Neue", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  letter-spacing: -0.01em;
 }
 
-/* Custom scrollbar for financial tables */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f1f5f9; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+/* Tighter number rendering */
+.font-mono {
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}
+
+/* Softer table borders */
+table { border-collapse: collapse; }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Remove blue focus outline on table cells */
+td:focus, th:focus { outline: none; }
+
+/* Smooth transitions on interactive elements */
+button, a { transition-property: color, background-color, border-color, opacity, box-shadow; transition-duration: 120ms; }
