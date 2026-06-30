@@ -1,4 +1,5 @@
 import type { DCFAssumptions, AssumptionSource, FinancialPeriod } from "@/types/model";
+import { deriveDriversFromHistory } from "@/lib/projection";
 
 interface AssumptionsResponse {
   assumptions: DCFAssumptions;
@@ -27,6 +28,7 @@ export async function generateDCFAssumptions(
     });
 
   const latestPeriod = historicalPeriods[0];
+  const derivedDrivers = deriveDriversFromHistory(historicalPeriods);
   const avgRevenueGrowth =
     historicalPeriods.length > 1
       ? historicalPeriods.slice(0, -1).reduce((acc, p, i) => {
@@ -35,19 +37,24 @@ export async function generateDCFAssumptions(
         }, 0) / (historicalPeriods.length - 1)
       : 0.05;
 
-  const prompt = `You are a senior equity research analyst building a DCF model for ${companyName} (${ticker}).
+  const latestDebt = ((latestPeriod.shortTermDebt ?? 0) + (latestPeriod.longTermDebt ?? 0)) / 1e6;
+  const latestCash = (latestPeriod.cash ?? 0) / 1e6;
 
-Company details:
-- Sector: ${sector}
-- Industry: ${industry}
-- Latest revenue: $${(latestPeriod.revenue / 1e6).toFixed(0)}M
-- Latest EBIT margin: ${((latestPeriod.ebit / latestPeriod.revenue) * 100).toFixed(1)}%
-- 3-year avg revenue growth: ${(avgRevenueGrowth * 100).toFixed(1)}%
-- Historical data: ${JSON.stringify(historicalSummary, null, 2)}
+  const prompt = `You are a senior equity research analyst at Goldman Sachs building an institutional DCF model for ${companyName} (${ticker}).
 
-Generate realistic, defensible DCF assumptions for Bear/Base/Bull scenarios with 5-year projections.
+COMPANY: ${sector} / ${industry}
+LATEST REVENUE: $${(latestPeriod.revenue / 1e6).toFixed(0)}M
+LATEST EBIT MARGIN: ${((latestPeriod.ebit / latestPeriod.revenue) * 100).toFixed(1)}%
+3Y AVG REVENUE GROWTH: ${(avgRevenueGrowth * 100).toFixed(1)}%
+TOTAL DEBT: $${latestDebt.toFixed(0)}M | CASH: $${latestCash.toFixed(0)}M
+HISTORICAL DATA: ${JSON.stringify(historicalSummary, null, 2)}
 
-Return ONLY valid JSON matching this exact schema:
+AUTO-DERIVED DRIVERS FROM HISTORICAL DATA (use as starting point, adjust for outlook):
+- AR Days: ${derivedDrivers.arDays} | AP Days: ${derivedDrivers.apDays} | Inventory Days: ${derivedDrivers.inventoryDays}
+- CapEx %: ${((derivedDrivers.capexPct ?? 0) * 100).toFixed(1)}% | D&A %: ${((derivedDrivers.depreciationPct ?? 0) * 100).toFixed(1)}%
+- Tax Rate: ${((derivedDrivers.taxRate ?? 0) * 100).toFixed(1)}% | Interest Rate: ${((derivedDrivers.interestRate ?? 0) * 100).toFixed(1)}%
+
+Generate institutional-quality Bear/Base/Bull DCF assumptions. Return ONLY valid JSON:
 {
   "assumptions": {
     "revenueGrowthBear": [number, number, number, number, number],
@@ -68,21 +75,39 @@ Return ONLY valid JSON matching this exact schema:
     "netDebt": number,
     "sharesOutstanding": number,
     "minorityInterest": 0,
-    "revenueGrowthRates": [0,0,0,0,0]
+    "revenueGrowthRates": [0,0,0,0,0],
+    "arDays": number,
+    "apDays": number,
+    "inventoryDays": number,
+    "openingDebt": number,
+    "interestRate": number,
+    "debtRepaymentPct": number,
+    "newDebtPct": number,
+    "openingPPE": number,
+    "dividendPctNI": number,
+    "buybackPctNI": number,
+    "openingCash": number,
+    "openingAR": number,
+    "openingInventory": number,
+    "openingAP": number,
+    "openingOtherAssets": number,
+    "openingOtherLiabilities": number,
+    "openingEquity": number
   },
   "sources": [
-    {
-      "field": "string (field name)",
-      "value": number,
-      "source": "string (e.g., 'Company 10-K FY2023', 'Sector consensus', 'Bloomberg analyst estimates')",
-      "rationale": "string (1-2 sentence explanation)"
-    }
+    { "field": "string", "value": number, "source": "string", "rationale": "string" }
   ],
-  "narrative": "string — structured with these exact bold headers on separate lines: **Business Overview** **Investment Thesis** **Revenue Drivers** **Margin Outlook** **Capital Allocation** **Key Risks** **Valuation Summary** **Why Bull Case** **Why Bear Case** — each followed by 1-2 sentences of analysis"
+  "narrative": "string — structured with these exact bold headers on separate lines: **Business Overview** **Investment Thesis** **Revenue Drivers** **Margin Outlook** **Capital Allocation** **Key Risks** **Valuation Summary** **Why Bull Case** **Why Bear Case** — each followed by 2-3 sentences of institutional-quality equity research analysis"
 }
 
-All rates should be decimals (e.g., 0.05 for 5%). EBIT margins and growth rates must be realistic for the sector.
-netDebt in millions. sharesOutstanding in millions.`;
+Rules:
+- All rates as decimals (0.05 = 5%)
+- netDebt, openingDebt, openingPPE, openingCash, openingAR, openingInventory, openingAP, openingOtherAssets, openingOtherLiabilities, openingEquity all in $M
+- sharesOutstanding in millions
+- debtRepaymentPct: annual % of debt repaid (typically 0.05–0.10)
+- dividendPctNI: dividends as % of net income (0 if no dividend history)
+- buybackPctNI: buybacks as % of net income (check historical capital returns)
+- Narrative must sound like Goldman Sachs equity research, not generic commentary`;
 
   // --- Claude (commented out, using DeepSeek) ---
   // const { default: Anthropic } = await import("@anthropic-ai/sdk");
@@ -130,6 +155,12 @@ netDebt in millions. sharesOutstanding in millions.`;
     parsed = JSON.parse(safe) as AssumptionsResponse;
     parsed.narrative = "AI narrative unavailable — assumptions generated successfully.";
   }
+
+  // Merge derived drivers as fallback for any missing fields
+  parsed.assumptions = {
+    ...derivedDrivers,
+    ...parsed.assumptions,
+  } as typeof parsed.assumptions;
 
   return parsed;
 }

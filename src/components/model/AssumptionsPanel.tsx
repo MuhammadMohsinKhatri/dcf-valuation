@@ -234,6 +234,115 @@ export function AssumptionsPanel({
         </div>
       </div>
 
+      {/* Working Capital Drivers */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-1 h-6 bg-teal-600 rounded"></div>
+          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Working Capital Schedule</h3>
+          <span className="text-xs text-gray-400 font-normal normal-case">Auto-derived from historical averages</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {[
+            { key: "arDays" as const, label: "AR Days", unit: "days", tip: "Accounts Receivable / Revenue × 365" },
+            { key: "apDays" as const, label: "AP Days", unit: "days", tip: "Accounts Payable / COGS × 365" },
+            { key: "inventoryDays" as const, label: "Inventory Days", unit: "days", tip: "Inventory / COGS × 365" },
+          ].map(({ key, label, unit, tip }) => {
+            const val = local[key] as number;
+            return (
+              <div key={key} className="bg-white border border-gray-200 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs text-gray-500 uppercase tracking-wide">{label}</label>
+                  <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
+                    assumptionKey={label} value={`${val} ${unit}`} label={label} />
+                </div>
+                <p className="text-[10px] text-gray-400 mb-2">{tip}</p>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number" step="1" min="0"
+                    value={val}
+                    onChange={(e) => updateField(key, parseFloat(e.target.value) as DCFAssumptions[typeof key])}
+                    className="w-full text-right border border-gray-200 rounded px-2 py-1.5 text-gray-900 font-mono text-sm focus:ring-1 focus:ring-teal-500 focus:border-teal-500 bg-yellow-50"
+                  />
+                  <span className="text-xs text-gray-400 flex-shrink-0">{unit}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Debt & Capital Structure */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-1 h-6 bg-orange-600 rounded"></div>
+          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Debt & Capital Structure</h3>
+          <span className="text-xs text-gray-400 font-normal normal-case">Drives interest expense and debt schedule</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {[
+            { key: "openingDebt" as const, label: "Opening Debt ($M)", pct: false, step: 10 },
+            { key: "interestRate" as const, label: "Interest Rate", pct: true, step: 0.01 },
+            { key: "debtRepaymentPct" as const, label: "Debt Repayment % / yr", pct: true, step: 0.01 },
+            { key: "newDebtPct" as const, label: "New Debt % of CapEx", pct: true, step: 0.01 },
+            { key: "openingPPE" as const, label: "Opening PP&E ($M)", pct: false, step: 10 },
+          ].map(({ key, label, pct, step }) => {
+            const val = local[key] as number;
+            return (
+              <div key={key} className="bg-white border border-gray-200 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs text-gray-500 uppercase tracking-wide">{label}</label>
+                  {pct && (
+                    <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
+                      assumptionKey={label} value={`${(val * 100).toFixed(1)}%`} label={label} />
+                  )}
+                </div>
+                <input
+                  type="number" step={step} min="0"
+                  value={pct ? (val * 100).toFixed(2) : val}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    updateField(key, (pct ? v / 100 : v) as DCFAssumptions[typeof key]);
+                  }}
+                  className="w-full text-right border border-gray-200 rounded px-2 py-1.5 text-gray-900 font-mono text-sm focus:ring-1 focus:ring-orange-500 focus:border-orange-500 bg-yellow-50"
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Financing & Capital Return */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-1 h-6 bg-violet-600 rounded"></div>
+          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Financing & Capital Return</h3>
+          <span className="text-xs text-gray-400 font-normal normal-case">Dividends and buybacks reduce cash available</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {[
+            { key: "dividendPctNI" as const, label: "Dividends % of Net Income", pct: true },
+            { key: "buybackPctNI" as const, label: "Buybacks % of Net Income", pct: true },
+          ].map(({ key, label, pct }) => {
+            const val = local[key] as number;
+            return (
+              <div key={key} className="bg-white border border-gray-200 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs text-gray-500 uppercase tracking-wide">{label}</label>
+                  <ExplainButton ticker={ticker} companyName={companyName} sector={sector}
+                    assumptionKey={label} value={`${(val * 100).toFixed(1)}%`} label={label} />
+                </div>
+                <input
+                  type="number" step="0.01" min="0" max={pct ? "100" : undefined}
+                  value={(val * 100).toFixed(2)}
+                  onChange={(e) => updateField(key, (parseFloat(e.target.value) / 100) as DCFAssumptions[typeof key])}
+                  className="w-full text-right border border-gray-200 rounded px-2 py-1.5 text-gray-900 font-mono text-sm focus:ring-1 focus:ring-violet-500 focus:border-violet-500 bg-yellow-50"
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Assumption Sources */}
       {sources.length > 0 && (
         <div>

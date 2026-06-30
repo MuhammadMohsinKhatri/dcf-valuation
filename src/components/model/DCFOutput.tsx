@@ -49,7 +49,13 @@ function computeDCF(model: DCFModel, scenario: Scenario) {
   const equity = ev - a.netDebt - a.minorityInterest;
   const ivps = equity / a.sharesOutstanding;
 
-  return { revenues, ebits, fcfs, pvFcfs, sumPVFcf, tv, pvTV, ev, equity, ivps, tvPct: (pvTV / ev) * 100, wacc, growthRates, ebitMargin };
+  const baseRev = hist[0].revenue / 1e6;
+  const revenueCagr = Math.pow(revenues[revenues.length - 1] / baseRev, 1 / years) - 1;
+  const fcfCagr = fcfs[0] > 0 ? Math.pow(fcfs[fcfs.length - 1] / fcfs[0], 1 / (years - 1)) - 1 : 0;
+  const ebitdaMargin = ebitMargin + (a.depreciationPct ?? 0);
+  const fcfMargin = fcfs[fcfs.length - 1] / revenues[revenues.length - 1];
+
+  return { revenues, ebits, fcfs, pvFcfs, sumPVFcf, tv, pvTV, ev, equity, ivps, tvPct: (pvTV / ev) * 100, wacc, growthRates, ebitMargin, revenueCagr, fcfCagr, ebitdaMargin, fcfMargin };
 }
 
 function computeIVPS_WACC_TGR(model: DCFModel, scenario: Scenario, waccOverride: number, tgrOverride: number) {
@@ -107,6 +113,13 @@ function computeIVPS_Growth_Margin(model: DCFModel, avgGrowthOverride: number, e
   return (ev - a.netDebt - a.minorityInterest) / a.sharesOutstanding;
 }
 
+function parseNarrativeSection(narrative: string, header: string): string[] {
+  const re = new RegExp(`\\*\\*${header}\\*\\*[:\\s]*([\\s\\S]*?)(?=\\*\\*[A-Z]|$)`, "i");
+  const m = narrative.match(re);
+  if (!m) return [];
+  return m[1].trim().split(/[•\-\n]+/).map(s => s.trim()).filter(s => s.length > 10).slice(0, 3);
+}
+
 export function DCFOutput({ model, scenario }: Props) {
   const result = useMemo(() => computeDCF(model, scenario), [model, scenario]);
   const bearResult = useMemo(() => computeDCF(model, "bear"), [model]);
@@ -150,8 +163,147 @@ export function DCFOutput({ model, scenario }: Props) {
   const hist = model.historicalPeriods;
   const latestYear = hist[0]?.year ?? new Date().getFullYear();
 
+  const narrative = model.aiNarrative ?? "";
+  const risks = parseNarrativeSection(narrative, "Key Risks");
+  const catalysts = parseNarrativeSection(narrative, "Why Bull Case").concat(parseNarrativeSection(narrative, "Investment Thesis")).slice(0, 3);
+  const recommendation = upside !== null ? (upside > 15 ? "BUY" : upside > -10 ? "HOLD" : "SELL") : "N/A";
+  const recColor = recommendation === "BUY" ? "bg-green-600" : recommendation === "HOLD" ? "bg-yellow-500" : "bg-red-600";
+
+  // KPI metrics (base case)
+  const latestRev = hist[0]?.revenue ?? 0;
+  const latestNI = hist[0]?.netIncome ?? 0;
+  const latestEBIT = hist[0]?.ebit ?? 0;
+  const latestDA = hist[0]?.depreciationAmortization ?? 0;
+  const latestEBITDA = latestEBIT + latestDA;
+  const latestFCF = hist[0]?.freeCashFlow ?? 0;
+  const latestAssets = hist[0]?.totalAssets ?? 0;
+  const latestEquity = hist[0]?.equity ?? 0;
+  const latestDebt = (hist[0]?.shortTermDebt ?? 0) + (hist[0]?.longTermDebt ?? 0);
+  const latestCA = hist[0]?.totalCurrentAssets ?? 0;
+  const latestCL = hist[0]?.totalCurrentLiabilities ?? 0;
+  const latestInv = hist[0]?.inventory ?? 0;
+  const netDebtCalc = latestDebt - (hist[0]?.cash ?? 0);
+  const kpis = [
+    { label: "Revenue CAGR (5YE)", value: baseResult ? `${fmt(baseResult.revenueCagr * 100, 1)}%` : "—", color: "text-blue-700" },
+    { label: "EBITDA Margin", value: latestRev > 0 ? `${fmt((latestEBITDA / latestRev) * 100, 1)}%` : "—", color: "text-gray-800" },
+    { label: "EBIT Margin", value: latestRev > 0 ? `${fmt((latestEBIT / latestRev) * 100, 1)}%` : "—", color: "text-gray-800" },
+    { label: "FCF Margin", value: latestRev > 0 ? `${fmt((latestFCF / latestRev) * 100, 1)}%` : "—", color: "text-gray-800" },
+    { label: "ROE", value: latestEquity > 0 ? `${fmt((latestNI / latestEquity) * 100, 1)}%` : "—", color: "text-gray-800" },
+    { label: "ROA", value: latestAssets > 0 ? `${fmt((latestNI / latestAssets) * 100, 1)}%` : "—", color: "text-gray-800" },
+    { label: "ROIC", value: (latestEquity + latestDebt) > 0 ? `${fmt((latestEBIT * (1 - a.taxRate) / (latestEquity + latestDebt)) * 100, 1)}%` : "—", color: "text-blue-700" },
+    { label: "Net Debt / EBITDA", value: latestEBITDA > 0 ? `${fmt(netDebtCalc / latestEBITDA, 1)}x` : "—", color: netDebtCalc < 0 ? "text-green-700" : "text-gray-800" },
+    { label: "Debt / EBITDA", value: latestEBITDA > 0 ? `${fmt(latestDebt / latestEBITDA, 1)}x` : "—", color: "text-gray-800" },
+    { label: "Current Ratio", value: latestCL > 0 ? `${fmt(latestCA / latestCL, 2)}x` : "—", color: "text-gray-800" },
+    { label: "Quick Ratio", value: latestCL > 0 ? `${fmt((latestCA - latestInv) / latestCL, 2)}x` : "—", color: "text-gray-800" },
+    { label: "FCF CAGR (5YE)", value: baseResult ? `${fmt(baseResult.fcfCagr * 100, 1)}%` : "—", color: "text-blue-700" },
+  ];
+
   return (
     <div className="space-y-0 font-sans">
+
+      {/* ── INVESTMENT SUMMARY CARD ── */}
+      <div className="bg-[#0f2744] rounded-xl border border-[#1a3a5c] px-6 py-5 mb-4">
+        <div className="flex items-start justify-between gap-6">
+          {/* Left: rating + key metrics */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-3">
+              <span className={`${recColor} text-white text-xs font-bold uppercase tracking-widest px-3 py-1 rounded`}>
+                {recommendation}
+              </span>
+              <span className="text-white font-bold text-lg">{model.companyName}</span>
+              <span className="text-blue-300 text-sm font-mono">{model.ticker}</span>
+              <span className="text-blue-400 text-xs">·</span>
+              <span className="text-blue-300 text-xs">{model.sector}</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <p className="text-[10px] text-blue-400 uppercase tracking-widest">Intrinsic Value</p>
+                <p className="text-2xl font-bold text-white">${fmt(baseResult?.ivps ?? 0, 2)}</p>
+              </div>
+              {currentPrice > 0 && (
+                <div>
+                  <p className="text-[10px] text-blue-400 uppercase tracking-widest">Market Price</p>
+                  <p className="text-2xl font-bold text-white">${fmt(currentPrice, 2)}</p>
+                </div>
+              )}
+              {upside !== null && (
+                <div>
+                  <p className="text-[10px] text-blue-400 uppercase tracking-widest">Upside / (Downside)</p>
+                  <p className={`text-2xl font-bold ${upside >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {upside >= 0 ? "+" : ""}{fmt(upside, 1)}%
+                  </p>
+                </div>
+              )}
+              <div>
+                <p className="text-[10px] text-blue-400 uppercase tracking-widest">TV % of EV</p>
+                <p className="text-2xl font-bold text-white">{fmt(baseResult?.tvPct ?? 0, 1)}%</p>
+              </div>
+            </div>
+            <div className="flex gap-6 mt-4 pt-4 border-t border-[#1a3a5c]">
+              <div>
+                <p className="text-[10px] text-blue-400 uppercase tracking-widest mb-1">Revenue CAGR</p>
+                <p className="text-sm font-bold text-blue-200">{baseResult ? `${fmt(baseResult.revenueCagr * 100, 1)}%` : "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-blue-400 uppercase tracking-widest mb-1">FCF CAGR</p>
+                <p className="text-sm font-bold text-blue-200">{baseResult ? `${fmt(baseResult.fcfCagr * 100, 1)}%` : "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-blue-400 uppercase tracking-widest mb-1">WACC</p>
+                <p className="text-sm font-bold text-blue-200">{fmt(a.waccBase * 100, 1)}%</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-blue-400 uppercase tracking-widest mb-1">Terminal Growth</p>
+                <p className="text-sm font-bold text-blue-200">{fmt(a.terminalGrowthRate * 100, 1)}%</p>
+              </div>
+            </div>
+          </div>
+          {/* Right: risks + catalysts */}
+          {(risks.length > 0 || catalysts.length > 0) && (
+            <div className="flex gap-6 flex-shrink-0">
+              {catalysts.length > 0 && (
+                <div className="w-48">
+                  <p className="text-[10px] text-green-400 uppercase tracking-widest font-bold mb-2">Key Catalysts</p>
+                  <ul className="space-y-1">
+                    {catalysts.map((c, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-xs text-green-200">
+                        <span className="text-green-400 mt-0.5 flex-shrink-0">▲</span>
+                        <span>{c.length > 55 ? c.slice(0, 55) + "…" : c}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {risks.length > 0 && (
+                <div className="w-48">
+                  <p className="text-[10px] text-red-400 uppercase tracking-widest font-bold mb-2">Primary Risks</p>
+                  <ul className="space-y-1">
+                    {risks.map((r, i) => (
+                      <li key={i} className="flex items-start gap-1.5 text-xs text-red-200">
+                        <span className="text-red-400 mt-0.5 flex-shrink-0">▼</span>
+                        <span>{r.length > 55 ? r.slice(0, 55) + "…" : r}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── KPI DASHBOARD ── */}
+      <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-4">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Key Performance Indicators — Latest Actuals + 5Y Base Projections</p>
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+          {kpis.map(({ label, value, color }) => (
+            <div key={label} className="bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100">
+              <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">{label}</p>
+              <p className={`text-base font-bold font-mono ${color}`}>{value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* ── PAGE HEADER (GS Style) ── */}
       <div className="bg-white border border-gray-300 rounded-t-xl px-6 pt-5 pb-4 flex items-start justify-between">
@@ -229,7 +381,11 @@ export function DCFOutput({ model, scenario }: Props) {
                 { label: "Intrinsic Value / Share", fn: (r: NonNullable<ReturnType<typeof computeDCF>>) => `$${fmt(r.ivps, 2)}`, bold: true },
                 { label: "WACC", fn: (r: NonNullable<ReturnType<typeof computeDCF>>) => `${fmt(r.wacc * 100, 2)}%`, bold: false },
                 { label: "Enterprise Value ($M)", fn: (r: NonNullable<ReturnType<typeof computeDCF>>) => `$${fmt(r.ev, 0)}`, bold: false },
+                { label: "Revenue CAGR (5Y)", fn: (r: NonNullable<ReturnType<typeof computeDCF>>) => `${r.revenueCagr >= 0 ? "+" : ""}${fmt(r.revenueCagr * 100, 1)}%`, bold: false },
                 { label: "EBIT Margin", fn: (r: NonNullable<ReturnType<typeof computeDCF>>) => `${fmt(r.ebitMargin * 100, 1)}%`, bold: false },
+                { label: "EBITDA Margin", fn: (r: NonNullable<ReturnType<typeof computeDCF>>) => `${fmt(r.ebitdaMargin * 100, 1)}%`, bold: false },
+                { label: "FCF CAGR (5Y)", fn: (r: NonNullable<ReturnType<typeof computeDCF>>) => `${r.fcfCagr >= 0 ? "+" : ""}${fmt(r.fcfCagr * 100, 1)}%`, bold: false },
+                { label: "FCF Margin", fn: (r: NonNullable<ReturnType<typeof computeDCF>>) => `${fmt(r.fcfMargin * 100, 1)}%`, bold: false },
                 { label: "TV % of EV", fn: (r: NonNullable<ReturnType<typeof computeDCF>>) => `${fmt(r.tvPct, 1)}%`, bold: false },
                 ...(currentPrice > 0 ? [{
                   label: "Upside / Downside",

@@ -54,16 +54,46 @@ model VerificationToken {
 }
 
 model DCFModel {
-  id                String   @id @default(cuid())
+  id                String          @id @default(cuid())
   userId            String
   ticker            String
   companyName       String
-  currency          String   @default("USD")
-  modelData         String   // JSON blob
-  activeScenario    String   @default("base")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency          String          @default("USD")
+  modelData         String          // JSON blob
+  activeScenario    String          @default("base")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions          ModelVersion[]
+  assumptionChanges AssumptionChange[]
   @@index([userId])
   @@index([ticker])
+}
+
+model ModelVersion {
+  id          String   @id @default(cuid())
+  modelId     String
+  versionNum  Int
+  label       String?  // e.g. "Post-earnings update", "Q3 guidance"
+  modelData   String   // full JSON snapshot
+  baseIVPS    Float?
+  bearIVPS    Float?
+  bullIVPS    Float?
+  createdAt   DateTime @default(now())
+  createdBy   String   // userId
+  model       DCFModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  @@index([modelId])
+}
+
+model AssumptionChange {
+  id         String   @id @default(cuid())
+  modelId    String
+  field      String   // e.g. "waccBase"
+  oldValue   String   // stored as string for flexibility
+  newValue   String
+  changedAt  DateTime @default(now())
+  changedBy  String   // userId
+  model      DCFModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  @@index([modelId])
+  @@index([changedAt])
 }

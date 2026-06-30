@@ -15,13 +15,16 @@ import { FormulaTrace } from "@/components/model/FormulaTrace";
 import { FinancialsTab } from "@/components/model/FinancialsTab";
 import { AnalystCopilot } from "@/components/model/AnalystCopilot";
 import { DCFExecutiveSummary } from "@/components/model/DCFExecutiveSummary";
+import { ChartsTab } from "@/components/model/ChartsTab";
+import { VersionHistory } from "@/components/model/VersionHistory";
 
 export default function ModelPage() {
   const { id } = useParams<{ id: string }>();
   const [model, setModel] = useState<DCFModel | null>(null);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"output" | "assumptions" | "financials" | "comps" | "interview" | "memo" | "qc" | "trace">("output");
+  const [activeTab, setActiveTab] = useState<"output" | "assumptions" | "financials" | "comps" | "charts" | "versions" | "interview" | "memo" | "qc" | "trace">("output");
+  const [prevAssumptions, setPrevAssumptions] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/model?id=${id}`).then((r) => r.json()).then((data) => {
@@ -29,6 +32,7 @@ export default function ModelPage() {
         const m = JSON.parse(data.modelData) as DCFModel;
         m.id = data.id;
         setModel(m);
+        setPrevAssumptions(JSON.stringify(m.assumptions));
       }
     });
   }, [id]);
@@ -49,11 +53,37 @@ export default function ModelPage() {
   async function save() {
     if (!model) return;
     setSaving(true);
+
+    // Diff assumptions vs last saved state for audit trail
+    if (prevAssumptions) {
+      const prev = JSON.parse(prevAssumptions) as Record<string, unknown>;
+      const curr = model.assumptions as unknown as Record<string, unknown>;
+      const changed = Object.keys(curr).filter(
+        (k) => JSON.stringify(prev[k]) !== JSON.stringify(curr[k])
+      );
+      if (changed.length > 0) {
+        await fetch("/api/audit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            modelId: model.id,
+            changes: changed.map((k) => ({
+              field: k,
+              oldValue: String(prev[k] ?? ""),
+              newValue: String(curr[k] ?? ""),
+            })),
+          }),
+        });
+      }
+    }
+
     await fetch("/api/model", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(model),
     });
+
+    setPrevAssumptions(JSON.stringify(model.assumptions));
     setSaving(false);
   }
 
@@ -201,6 +231,8 @@ export default function ModelPage() {
             { id: "assumptions", label: "Assumptions" },
             { id: "financials", label: "Financials" },
             { id: "comps", label: "Comps" },
+            { id: "charts", label: "Charts" },
+            { id: "versions", label: "Version History" },
             { id: "trace", label: "Formula Trace" },
             { id: "interview", label: "MD Interview" },
             { id: "memo", label: "Investment Memo" },
@@ -253,6 +285,21 @@ export default function ModelPage() {
         )}
         {activeTab === "comps" && (
           <ValuationComps model={model} />
+        )}
+        {activeTab === "charts" && (
+          <ChartsTab model={model} />
+        )}
+        {activeTab === "versions" && (
+          <VersionHistory
+            model={model}
+            onRestore={(restored) => {
+              setModel(restored);
+              setPrevAssumptions(JSON.stringify(restored.assumptions));
+            }}
+            currentBaseIVPS={baseIVPS}
+            currentBearIVPS={bearIVPS}
+            currentBullIVPS={bullIVPS}
+          />
         )}
         {activeTab === "trace" && (
           <FormulaTrace model={model} />

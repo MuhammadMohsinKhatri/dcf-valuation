@@ -25,6 +25,28 @@ const DEFAULT_ASSUMPTIONS: DCFAssumptions = {
   netDebt: 0,
   sharesOutstanding: 100,
   minorityInterest: 0,
+  // Working Capital
+  arDays: 45,
+  apDays: 35,
+  inventoryDays: 30,
+  // Debt Schedule
+  openingDebt: 0,
+  interestRate: 0.05,
+  debtRepaymentPct: 0.05,
+  newDebtPct: 0,
+  // PP&E
+  openingPPE: 0,
+  // Financing
+  dividendPctNI: 0,
+  buybackPctNI: 0,
+  // Opening Balance Sheet ($M)
+  openingCash: 0,
+  openingAR: 0,
+  openingInventory: 0,
+  openingAP: 0,
+  openingOtherAssets: 0,
+  openingOtherLiabilities: 0,
+  openingEquity: 0,
 };
 
 // Common company name → ticker lookup (works without FMP search)
